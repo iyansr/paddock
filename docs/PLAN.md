@@ -105,9 +105,12 @@ Build in this order; M1 alone already replaces Orca's project switching.
 
 ### M3 Worktrees
 
-- List with `herdr worktree list --workspace <id>`.
-- Create with `herdr worktree create --workspace <id> --branch <name> --no-focus`. herdr makes the checkout under its worktrees directory and returns the new workspace.
-- Remove with `herdr worktree remove --workspace <id>`, adding `--force` only after I confirm a dirty checkout. It never deletes the branch.
+- **List** with `herdr worktree list --cwd <project path>`. `--cwd` instead of `--workspace` works before the project has a herdr workspace, so listing never creates one (and its stray shell). The list includes the main checkout (`is_linked_worktree: false`); a folder that is not a git repository answers `not_git_worktree` and shows its sessions directly, without worktree rows. The last list per project is kept in `globalState`, so a window opened on a worktree knows its project before herdr answers. Paddock re-lists on activation, on window focus, after adding a project, and when `workspace list` shows a workspace on a checkout it does not know.
+- **Tree.** A git project expands to its checkouts (main first, labelled by branch), each expanding to its sessions. A worktree's workspace is matched by `worktree.checkout_path` in `workspace list`, since herdr labels it with the branch, not the project name. Layouts and open files are keyed per checkout (the main checkout keeps the project id).
+- **Create** with `herdr worktree create --cwd <project path> --branch <name> --no-focus`. An existing branch is checked out, any other name becomes a new branch. herdr makes the checkout under `~/.herdr/worktrees/<repo>/<branch>` and returns the new workspace with a root shell pane; the first session started there takes over that pane.
+- **Reopen.** herdr closes a worktree's workspace with its last pane (the checkout stays, `open_workspace_id` disappears). Starting a session there runs `herdr worktree open --cwd <project path> --path <checkout> --no-focus` first.
+- **Remove** with `herdr worktree remove --workspace <id>`, which needs an open workspace, so Paddock reopens it first if needed. It also closes the workspace and its sessions. A dirty checkout answers `dirty_worktree_requires_force`; `--force` is added only after I confirm. It never deletes the branch. The main checkout answers `not_linked_worktree` and has no Remove action, and the worktree open in the current window cannot be removed.
+- **Errors.** herdr 0.9.3 writes error envelopes (`{"error":{"code",…}}`) to stderr with a non-zero exit, not to stdout; `cli.ts` reads them from there.
 
 ### M4 Picker
 

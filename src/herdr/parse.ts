@@ -32,6 +32,19 @@ export interface AgentInfo {
 export interface WorkspaceInfo {
 	workspaceId: string;
 	label: string;
+	/** Git checkout the workspace was opened on, when herdr knows it is one. */
+	checkoutPath?: string;
+}
+
+/** One checkout from `herdr worktree list`: the main one or a linked worktree. */
+export interface WorktreeInfo {
+	path: string;
+	/** Unset for a detached checkout. */
+	branch?: string;
+	/** False for the repository's main checkout. */
+	linked: boolean;
+	/** herdr workspace open on this checkout, if any. */
+	openWorkspaceId?: string;
 }
 
 type Obj = Record<string, unknown>;
@@ -113,8 +126,37 @@ export function parseAgentList(result: Obj): AgentInfo[] {
 export function parseWorkspaceList(result: Obj): WorkspaceInfo[] {
 	return list(result, 'workspaces', 'result').map(value => {
 		const w = obj(value, 'workspace');
-		return { workspaceId: str(w, 'workspace_id', 'workspace'), label: optStr(w, 'label') ?? '' };
+		const worktree = w.worktree;
+		const checkoutPath = typeof worktree === 'object' && worktree !== null ? optStr(worktree as Obj, 'checkout_path') : undefined;
+		return { workspaceId: str(w, 'workspace_id', 'workspace'), label: optStr(w, 'label') ?? '', checkoutPath };
 	});
+}
+
+function parseWorktree(value: unknown): WorktreeInfo {
+	const w = obj(value, 'worktree');
+	return {
+		path: str(w, 'path', 'worktree'),
+		branch: optStr(w, 'branch'),
+		linked: w.is_linked_worktree === true,
+		openWorkspaceId: optStr(w, 'open_workspace_id'),
+	};
+}
+
+export function parseWorktreeList(result: Obj): WorktreeInfo[] {
+	return list(result, 'worktrees', 'result').map(parseWorktree);
+}
+
+/**
+ * `worktree create` and `worktree open` return the checkout and its workspace. A new
+ * workspace comes with its root pane; `open` on one that is already open has none.
+ */
+export function parseWorktreeOpened(result: Obj): { worktree: WorktreeInfo; workspaceId: string; rootPane?: PaneInfo } {
+	const workspace = obj(result.workspace, 'result.workspace');
+	return {
+		worktree: parseWorktree(result.worktree),
+		workspaceId: str(workspace, 'workspace_id', 'workspace'),
+		rootPane: result.root_pane === undefined ? undefined : parsePane(result.root_pane),
+	};
 }
 
 /** `workspace create` and `tab create` both return the new tab's root pane. */

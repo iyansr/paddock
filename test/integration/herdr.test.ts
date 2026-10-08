@@ -1,11 +1,12 @@
+import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { rmSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Herdr } from '../../src/herdr/cli';
 import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/frames';
-import { isSupportedVersion } from '../../src/herdr/parse';
+import { HerdrError, isSupportedVersion } from '../../src/herdr/parse';
 
 // A throwaway session. Never the real `paddock` session: it holds real agents.
 const session = `paddock-test-${randomBytes(4).toString('hex')}`;
@@ -106,5 +107,47 @@ describe('herdr (real server, throwaway session)', () => {
 		// Any reason other than our own release means the pane is gone.
 		expect(closed).toMatch(/exited/);
 		expect((await herdr.paneList(workspaceId)).map(p => p.paneId)).toEqual([rootPane.paneId]);
+	});
+
+	it('lists, creates, reopens and removes worktrees', async () => {
+		// A throwaway repository; herdr puts its worktrees under ~/.herdr/worktrees/<repo name>.
+		const parent = mkdtempSync(join(tmpdir(), 'paddock-itest-'));
+		const name = `paddock-itest-${randomBytes(4).toString('hex')}`;
+		const repo = join(parent, name);
+		mkdirSync(repo);
+		const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
+		git('init', '-q', '-b', 'main');
+		git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
+		try {
+			const [main] = await herdr.worktreeList(repo);
+			expect(main).toMatchObject({ branch: 'main', linked: false });
+
+			const created = await herdr.worktreeCreate(repo, 'feat-a');
+			expect(created.worktree).toMatchObject({ branch: 'feat-a', linked: true, openWorkspaceId: created.workspaceId });
+			expect(created.rootPane?.workspaceId).toBe(created.workspaceId);
+			expect((await herdr.workspaceList()).find(w => w.workspaceId === created.workspaceId)?.checkoutPath).toBe(created.worktree.path);
+
+			// Closing the last pane closes the workspace; the checkout stays and can be reopened.
+			await herdr.paneClose(created.rootPane!.paneId);
+			const closed = (await herdr.worktreeList(repo)).find(w => w.path === created.worktree.path);
+			expect(closed?.openWorkspaceId).toBeUndefined();
+			const reopened = await herdr.worktreeOpen(repo, created.worktree.path);
+			expect(reopened.rootPane).toBeDefined();
+
+			// Uncommitted changes need --force; the branch survives removal.
+			writeFileSync(join(created.worktree.path, 'dirty.txt'), 'x');
+			const dirty = await herdr.worktreeRemove(reopened.workspaceId, false).catch((e: unknown) => e);
+			expect(dirty).toBeInstanceOf(HerdrError);
+			expect((dirty as HerdrError).code).toBe('dirty_worktree_requires_force');
+			await herdr.worktreeRemove(reopened.workspaceId, true);
+			expect((await herdr.worktreeList(repo)).map(w => w.path)).toEqual([main.path]);
+			expect(execFileSync('git', ['branch', '--list', 'feat-a'], { cwd: repo, encoding: 'utf8' })).toContain('feat-a');
+
+			const notRepo = await herdr.worktreeList(parent).catch((e: unknown) => e);
+			expect((notRepo as HerdrError).code).toBe('not_git_worktree');
+		} finally {
+			rmSync(parent, { recursive: true, force: true });
+			rmSync(join(homedir(), '.herdr', 'worktrees', name), { recursive: true, force: true });
+		}
 	});
 });

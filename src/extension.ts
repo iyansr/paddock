@@ -36,6 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (s.focused) {
 				store.reload();
 				void sessions.refresh();
+				void sessions.refreshWorktrees();
 			}
 		}),
 		sessions.startPolling(2000),
@@ -58,10 +59,13 @@ async function startHerdr(herdr: Herdr, sessions: Sessions): Promise<void> {
 		return;
 	}
 	try {
-		// Only bring the server up when this window's project has sessions to reattach.
-		if (sessions.currentProject()?.workspaceId) {
+		// Only bring the server up when this window's checkout may have sessions to reattach.
+		const current = sessions.currentCheckout();
+		if (current?.worktree || current?.project.workspaceId) {
 			await herdr.ensureServer();
 		}
+		// Before restore: a window opened on a worktree made outside Paddock needs the list to know its project.
+		await sessions.refreshWorktrees();
 		await sessions.restore();
 		await sessions.refresh();
 	} catch (e) {

@@ -3,7 +3,7 @@ import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/fr
 import { AGENT_NAME, displayName, nextAgentName } from '../../src/herdr/names';
 import {
 	HerdrError, isSupportedVersion, parseAgentList, parseCreated, parseEnvelope, parsePaneList,
-	parseServerRunning, parseWorkspaceList,
+	parseServerRunning, parseWorkspaceList, parseWorktreeList, parseWorktreeOpened,
 } from '../../src/herdr/parse';
 import { mapStatus, newlyWaiting, parseIntegrationStatus, waitingByWorkspace, type StatusEntry } from '../../src/herdr/status';
 import { remove, restorable, upsert, type OpenSession } from '../../src/layout';
@@ -57,6 +57,55 @@ describe('parsers', () => {
 	});
 	it('parses a created tab or workspace', () => {
 		expect(parseCreated({ root_pane: PANE }).rootPane.paneId).toBe('w1:p1');
+	});
+});
+
+// Captured from herdr 0.9.3 (`worktree list`, `worktree create`).
+const MAIN_WORKTREE = {
+	branch: 'main', is_bare: false, is_detached: false, is_linked_worktree: false, is_prunable: false,
+	label: 'repo', open_workspace_id: 'w1', path: '/tmp/repo',
+};
+const LINKED_WORKTREE = {
+	branch: 'feat-a', is_bare: false, is_detached: false, is_linked_worktree: true, is_prunable: false,
+	label: 'repo', path: '/Users/me/.herdr/worktrees/repo/feat-a',
+};
+
+describe('worktrees', () => {
+	it('parses worktree list, with no workspace when herdr has none open', () => {
+		expect(parseWorktreeList({ type: 'worktree_list', worktrees: [MAIN_WORKTREE, LINKED_WORKTREE] })).toEqual([
+			{ path: '/tmp/repo', branch: 'main', linked: false, openWorkspaceId: 'w1' },
+			{ path: '/Users/me/.herdr/worktrees/repo/feat-a', branch: 'feat-a', linked: true, openWorkspaceId: undefined },
+		]);
+	});
+	it('treats a null branch (detached) as unset', () => {
+		const [w] = parseWorktreeList({ worktrees: [{ ...LINKED_WORKTREE, branch: null, is_detached: true }] });
+		expect(w.branch).toBeUndefined();
+	});
+	it('parses worktree create with its root pane', () => {
+		const result = {
+			type: 'worktree_created',
+			root_pane: { ...PANE, pane_id: 'w2:p1', tab_id: 'w2:t1', workspace_id: 'w2' },
+			workspace: { workspace_id: 'w2', label: 'feat-a', worktree: { checkout_path: LINKED_WORKTREE.path, is_linked_worktree: true } },
+			worktree: { ...LINKED_WORKTREE, open_workspace_id: 'w2' },
+		};
+		const opened = parseWorktreeOpened(result);
+		expect(opened.workspaceId).toBe('w2');
+		expect(opened.rootPane?.paneId).toBe('w2:p1');
+		expect(opened.worktree).toMatchObject({ branch: 'feat-a', linked: true, openWorkspaceId: 'w2' });
+	});
+	it('parses worktree open on an already open workspace, which has no root pane', () => {
+		const opened = parseWorktreeOpened({ already_open: true, workspace: { workspace_id: 'w2' }, worktree: LINKED_WORKTREE });
+		expect(opened).toMatchObject({ workspaceId: 'w2', rootPane: undefined });
+	});
+	it('reads the checkout path of a workspace', () => {
+		const list = parseWorkspaceList({
+			workspaces: [
+				{ workspace_id: 'w1', label: 'plain' },
+				{ workspace_id: 'w2', label: 'feat-a', worktree: { checkout_path: LINKED_WORKTREE.path } },
+				{ workspace_id: 'w3', label: 'x', worktree: null },
+			],
+		});
+		expect(list.map(w => w.checkoutPath)).toEqual([undefined, LINKED_WORKTREE.path, undefined]);
 	});
 });
 

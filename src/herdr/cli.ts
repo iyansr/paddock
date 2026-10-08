@@ -5,7 +5,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
 	HerdrError, parseAgentList, parseCreated, parseEnvelope, parsePaneList, parseServerRunning,
-	parseWorkspaceList, type AgentInfo, type PaneInfo, type WorkspaceInfo,
+	parseWorkspaceList, parseWorktreeList, parseWorktreeOpened, type AgentInfo, type PaneInfo, type WorkspaceInfo,
+	type WorktreeInfo,
 } from './parse';
 import { parseIntegrationStatus, type IntegrationStatus } from './status';
 
@@ -67,21 +68,22 @@ export class Herdr {
 		return binary;
 	}
 
-	private async exec(args: string[], timeout = 15_000): Promise<{ stdout: string; failed?: ExecFailure }> {
+	private async exec(args: string[], timeout = 15_000): Promise<{ stdout: string; stderr: string; failed?: ExecFailure }> {
 		const binary = await this.binary();
 		return new Promise(resolve => {
-			execFile(binary, args, { env: this.env, timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
-				resolve({ stdout, failed: error ?? undefined });
+			execFile(binary, args, { env: this.env, timeout, maxBuffer: 16 * 1024 * 1024 }, (error, stdout, stderr) => {
+				resolve({ stdout, stderr, failed: error ?? undefined });
 			});
 		});
 	}
 
 	/** Runs a command that answers with a JSON envelope and returns its `result`. */
 	private async call(args: string[], timeout?: number): Promise<Record<string, unknown>> {
-		const { stdout, failed } = await this.exec(args, timeout);
-		if (stdout.trim()) {
-			// herdr reports errors as JSON on stdout, usually with a non-zero exit.
-			return parseEnvelope(stdout);
+		const { stdout, stderr, failed } = await this.exec(args, timeout);
+		// herdr writes the result envelope to stdout, and an error envelope to stderr with a non-zero exit.
+		const reply = stdout.trim() || (failed && stderr.trim().startsWith('{') ? stderr.trim() : '');
+		if (reply) {
+			return parseEnvelope(reply);
 		}
 		throw new HerdrError(String(failed?.code ?? 'exec_failed'), failed?.message ?? 'herdr produced no output');
 	}
@@ -128,6 +130,29 @@ export class Herdr {
 	async tabCreate(workspaceId: string, cwd: string): Promise<PaneInfo> {
 		const result = await this.call(['tab', 'create', '--workspace', workspaceId, '--cwd', cwd, '--no-focus']);
 		return parseCreated(result).rootPane;
+	}
+
+	/** Checkouts of the repository at `cwd`, main first. Throws `not_git_worktree` outside a repository. */
+	async worktreeList(cwd: string): Promise<WorktreeInfo[]> {
+		return parseWorktreeList(await this.call(['worktree', 'list', '--cwd', cwd]));
+	}
+
+	/** Creates a checkout of `branch` (a new branch when it does not exist) under herdr's worktrees directory, in its own workspace. */
+	async worktreeCreate(repoPath: string, branch: string): Promise<{ worktree: WorktreeInfo; workspaceId: string; rootPane?: PaneInfo }> {
+		return parseWorktreeOpened(await this.call(['worktree', 'create', '--cwd', repoPath, '--branch', branch, '--no-focus'], 60_000));
+	}
+
+	/** Opens a workspace on an existing checkout; herdr closes it again when its last pane closes. */
+	async worktreeOpen(repoPath: string, checkoutPath: string): Promise<{ worktree: WorktreeInfo; workspaceId: string; rootPane?: PaneInfo }> {
+		return parseWorktreeOpened(await this.call(['worktree', 'open', '--cwd', repoPath, '--path', checkoutPath, '--no-focus']));
+	}
+
+	/**
+	 * Removes a linked checkout and closes its workspace, never the branch. Throws
+	 * `dirty_worktree_requires_force` for uncommitted changes unless `force`.
+	 */
+	async worktreeRemove(workspaceId: string, force: boolean): Promise<void> {
+		await this.call(['worktree', 'remove', '--workspace', workspaceId, ...(force ? ['--force'] : [])], 60_000);
 	}
 
 	/** All panes, or those of one workspace. */

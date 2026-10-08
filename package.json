@@ -100,6 +100,23 @@
         "title": "Kill Session",
         "category": "Paddock",
         "icon": "$(trash)"
+      },
+      {
+        "command": "paddock.openWorktree",
+        "title": "Open Worktree",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.newWorktree",
+        "title": "New Worktree\u2026",
+        "category": "Paddock",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "paddock.removeWorktree",
+        "title": "Remove Worktree\u2026",
+        "category": "Paddock",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -175,6 +192,26 @@
           "command": "paddock.killSession",
           "when": "view == paddock.projects && viewItem == session",
           "group": "9_kill@1"
+        },
+        {
+          "command": "paddock.newWorktree",
+          "when": "view == paddock.projects && viewItem == project",
+          "group": "0_session@2"
+        },
+        {
+          "command": "paddock.newSession",
+          "when": "view == paddock.projects && viewItem =~ /^(mainWorktree|worktree)$/",
+          "group": "inline@0"
+        },
+        {
+          "command": "paddock.newSession",
+          "when": "view == paddock.projects && viewItem =~ /^(mainWorktree|worktree)$/",
+          "group": "0_session@1"
+        },
+        {
+          "command": "paddock.removeWorktree",
+          "when": "view == paddock.projects && viewItem == worktree",
+          "group": "9_remove@1"
         }
       ],
       "commandPalette": [
@@ -213,12 +250,24 @@
         {
           "command": "paddock.killSession",
           "when": "false"
+        },
+        {
+          "command": "paddock.openWorktree",
+          "when": "false"
+        },
+        {
+          "command": "paddock.removeWorktree",
+          "when": "false"
         }
       ],
       "paddock.projectMenu": [
         {
           "command": "paddock.newSession",
           "group": "0_session@1"
+        },
+        {
+          "command": "paddock.newWorktree",
+          "group": "0_session@2"
         },
         {
           "command": "paddock.moveToGroup",

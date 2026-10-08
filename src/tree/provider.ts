@@ -1,5 +1,6 @@
 import * as os from 'node:os';
 import * as vscode from 'vscode';
+import { branchName, type Checkout } from '../checkouts';
 import type { SessionState } from '../herdr/status';
 import type { Sessions } from '../sessions';
 import { projectsOf, sortedGroups, Store, UNGROUPED_ID } from '../store';
@@ -7,8 +8,10 @@ import { projectsOf, sortedGroups, Store, UNGROUPED_ID } from '../store';
 export type Node =
 	| { kind: 'group'; id: string }
 	| { kind: 'project'; id: string }
-	/** `id` is the herdr pane id. */
-	| { kind: 'session'; id: string; projectId: string }
+	/** `id` is the checkout path; the main checkout is listed too. */
+	| { kind: 'worktree'; id: string; projectId: string }
+	/** `id` is the herdr pane id; `worktree` is the parent worktree row's id, if the project lists worktrees. */
+	| { kind: 'session'; id: string; projectId: string; worktree?: string }
 	| { kind: 'add'; id: 'add' | 'addGroup' };
 
 const ADD_NODE: Node = { kind: 'add', id: 'add' };
@@ -51,14 +54,39 @@ export class ProjectsProvider implements vscode.TreeDataProvider<Node> {
 		if (node.kind === 'group') {
 			return projectsOf(data, node.id).map((p): Node => ({ kind: 'project', id: p.id }));
 		}
+		if (node.kind === 'worktree') {
+			const checkout = this.checkoutOfRow(node);
+			return checkout ? this.sessionNodes(checkout, node.id) : [];
+		}
 		const project = node.kind === 'project' ? data.projects.find(p => p.id === node.id) : undefined;
-		return project
-			? this.sessions.sessionsOf(project).map((s): Node => ({ kind: 'session', id: s.paneId, projectId: project.id }))
-			: [];
+		if (!project) {
+			return [];
+		}
+		// A git repository lists its checkouts, each with its sessions; any other folder lists sessions directly.
+		const worktrees = this.sessions.worktreesOf(project);
+		return worktrees.length
+			? worktrees.map((w): Node => ({ kind: 'worktree', id: w.path, projectId: project.id }))
+			: this.sessionNodes({ project });
+	}
+
+	private sessionNodes(checkout: Checkout, worktree?: string): Node[] {
+		return this.sessions
+			.sessionsIn(checkout)
+			.map((s): Node => ({ kind: 'session', id: s.paneId, projectId: checkout.project.id, worktree }));
+	}
+
+	/** The checkout a worktree row stands for; the main checkout's row is the project itself. */
+	private checkoutOfRow(node: { id: string; projectId: string }): Checkout | undefined {
+		return this.sessions.checkout(node.projectId, node.id);
 	}
 
 	getParent(node: Node): Node | undefined {
 		if (node.kind === 'session') {
+			return node.worktree
+				? { kind: 'worktree', id: node.worktree, projectId: node.projectId }
+				: { kind: 'project', id: node.projectId };
+		}
+		if (node.kind === 'worktree') {
 			return { kind: 'project', id: node.projectId };
 		}
 		if (node.kind !== 'project') {
@@ -97,6 +125,9 @@ export class ProjectsProvider implements vscode.TreeDataProvider<Node> {
 			item.description = count > 0 ? `${count} waiting` : undefined;
 			return item;
 		}
+		if (node.kind === 'worktree') {
+			return this.worktreeItem(node);
+		}
 		if (node.kind === 'session') {
 			const session = this.sessions.findSession(node.id);
 			const item = new vscode.TreeItem(session?.name ?? node.id, vscode.TreeItemCollapsibleState.None);
@@ -109,10 +140,10 @@ export class ProjectsProvider implements vscode.TreeDataProvider<Node> {
 			return item;
 		}
 		const project = data.projects.find(p => p.id === node.id);
-		const hasSessions = project ? this.sessions.sessionsOf(project).length > 0 : false;
+		const hasChildren = project ? this.getChildren(node).length > 0 : false;
 		const item = new vscode.TreeItem(
 			project?.name ?? node.id,
-			hasSessions ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+			hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
 		);
 		item.id = `project:${node.id}`;
 		item.contextValue = 'project';
@@ -128,6 +159,29 @@ export class ProjectsProvider implements vscode.TreeDataProvider<Node> {
 			item.description = waiting > 0 ? `${waiting} waiting · ${shown}` : shown;
 			item.tooltip = project.path;
 			item.resourceUri = vscode.Uri.file(project.path);
+		}
+		return item;
+	}
+
+	private worktreeItem(node: { id: string; projectId: string }): vscode.TreeItem {
+		const project = this.store.snapshot.projects.find(p => p.id === node.projectId);
+		const worktree = project && this.sessions.worktreesOf(project).find(w => w.path === node.id);
+		const checkout = this.checkoutOfRow(node);
+		const sessions = checkout ? this.sessions.sessionsIn(checkout) : [];
+		const item = new vscode.TreeItem(
+			worktree ? branchName(worktree) : node.id,
+			sessions.length ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None,
+		);
+		item.id = `worktree:${node.projectId}:${node.id}`;
+		// Only a linked worktree can be removed; the main checkout is the project itself.
+		item.contextValue = worktree?.linked ? 'worktree' : 'mainWorktree';
+		const isOpen = !!checkout && this.sessions.isCurrent(checkout);
+		item.iconPath = new vscode.ThemeIcon('git-branch', isOpen ? new vscode.ThemeColor('list.highlightForeground') : undefined);
+		const waiting = sessions.filter(s => s.status === 'waiting').length;
+		item.description = [waiting > 0 ? `${waiting} waiting` : undefined, isOpen ? 'open' : undefined].filter(Boolean).join(' · ') || undefined;
+		item.tooltip = node.id;
+		if (!isOpen && checkout) {
+			item.command = { command: 'paddock.openWorktree', title: 'Open Worktree', arguments: [node] };
 		}
 		return item;
 	}

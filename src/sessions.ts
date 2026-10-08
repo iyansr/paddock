@@ -1,10 +1,14 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import {
+	checkoutAt, checkoutKey, checkoutOf, checkoutName, checkoutPath, samePath, WORKTREES_KEY,
+	type Checkout, type Worktrees,
+} from './checkouts';
 import { captureEditors, closeEditors, EDITORS_KEY, restoreEditors, revertStashed, type EditorSnapshot, type EditorSnapshots } from './editors';
 import { Herdr } from './herdr/cli';
 import { displayName, nextAgentName } from './herdr/names';
-import type { AgentInfo, PaneInfo } from './herdr/parse';
+import { HerdrError, type AgentInfo, type PaneInfo, type WorktreeInfo } from './herdr/parse';
 import { mapStatus, newlyWaiting, waitingByWorkspace, type SessionState, type StatusEntry } from './herdr/status';
 import { HerdrPty } from './herdr/terminal';
 import { LAYOUTS_KEY, remove, restorable, upsert, type Layouts, type OpenSession, type TerminalLocation } from './layout';
@@ -28,7 +32,8 @@ const INTEGRATION_ASKED_KEY = 'paddock.integrationAsked';
 const INTEGRATION_KINDS = new Set(['claude', 'codex']);
 
 interface PendingOpen {
-	projectId: string;
+	/** checkoutKey() of the checkout to open it in. */
+	key: string;
 	paneId: string;
 }
 
@@ -38,7 +43,8 @@ interface OpenTerminal {
 	terminal: vscode.Terminal;
 	pty: HerdrPty;
 	session: OpenSession;
-	projectId: string;
+	/** checkoutKey() of the checkout the session belongs to. */
+	key: string;
 }
 
 export type SwitchMode = 'reload' | 'swap';
@@ -51,6 +57,12 @@ export class Sessions {
 	private bySession = new Map<string, SessionInfo[]>();
 	/** Label of each live herdr workspace. herdr ids are positional (`w1`) and get reused, so the label tells whose it is. */
 	private labels = new Map<string, string>();
+	/** Git checkout of each live herdr workspace, which tells whose a worktree's workspace is. */
+	private checkoutPaths = new Map<string, string>();
+	/** Last `herdr worktree list` per project, kept across reloads so a window opened on a worktree knows its project at once. */
+	private worktrees: Worktrees;
+	/** Checkout paths that already triggered a worktree re-list, so an unknown repository does not re-list on every poll. */
+	private unknownCheckouts = new Set<string>();
 	private lastSignature = '';
 	/** Last seen state per pane; undefined until the first successful poll, which only sets the baseline. */
 	private seen: Map<string, SessionState> | undefined;
@@ -67,6 +79,7 @@ export class Sessions {
 	) {
 		this.layouts = context.workspaceState.get<Layouts>(LAYOUTS_KEY) ?? {};
 		this.editors = context.workspaceState.get<EditorSnapshots>(EDITORS_KEY) ?? {};
+		this.worktrees = context.globalState.get<Worktrees>(WORKTREES_KEY) ?? {};
 		// Whatever closed a terminal (tab, `exit`, pane killed elsewhere), forget it.
 		context.subscriptions.push(
 			// The open project changes when a folder is swapped in place.
@@ -88,8 +101,34 @@ export class Sessions {
 		return project.workspaceId === workspaceId && this.labels.get(workspaceId) === project.name;
 	}
 
-	sessionsOf(project: Project): SessionInfo[] {
-		return (project.workspaceId && this.owns(project, project.workspaceId) && this.bySession.get(project.workspaceId)) || [];
+	/** herdr workspace currently open on the checkout, if any. */
+	private workspaceOf(c: Checkout): string | undefined {
+		if (!c.worktree) {
+			const { workspaceId } = c.project;
+			return workspaceId && this.owns(c.project, workspaceId) ? workspaceId : undefined;
+		}
+		const worktreePath = c.worktree.path;
+		for (const [workspaceId, checkout] of this.checkoutPaths) {
+			if (samePath(checkout, worktreePath)) {
+				return workspaceId;
+			}
+		}
+		return undefined;
+	}
+
+	sessionsIn(c: Checkout): SessionInfo[] {
+		const workspaceId = this.workspaceOf(c);
+		return (workspaceId && this.bySession.get(workspaceId)) || [];
+	}
+
+	/** Every checkout of the project, main first; empty when it is not a git repository (or not listed yet). */
+	worktreesOf(project: Project): WorktreeInfo[] {
+		return this.worktrees[project.id] ?? [];
+	}
+
+	/** The checkout a tree node names. */
+	checkout(projectId: string, worktreePath?: string): Checkout | undefined {
+		return checkoutOf(this.store.snapshot.projects, this.worktrees, projectId, worktreePath);
 	}
 
 	/** Folder Paddock keeps first in the window so the project folder after it can be swapped without a reload. */
@@ -106,14 +145,36 @@ export class Sessions {
 		return vscode.workspace.getConfiguration('paddock').get<SwitchMode>('switchMode') === 'swap' ? 'swap' : 'reload';
 	}
 
-	currentProject(): Project | undefined {
+	/** The project folder or worktree open in this window. */
+	currentCheckout(): Checkout | undefined {
 		const folders = vscode.workspace.workspaceFolders;
 		const folder = (this.isSwapWindow() ? folders?.[1] : folders?.[0])?.uri.fsPath;
-		return folder ? this.store.snapshot.projects.find(p => path.resolve(p.path) === path.resolve(folder)) : undefined;
+		return folder ? checkoutAt(this.store.snapshot.projects, this.worktrees, folder) : undefined;
+	}
+
+	currentProject(): Project | undefined {
+		return this.currentCheckout()?.project;
+	}
+
+	isCurrent(c: Checkout): boolean {
+		const current = this.currentCheckout();
+		return !!current && checkoutKey(current) === checkoutKey(c);
+	}
+
+	/** The checkout a herdr workspace was opened on: a project's own workspace, or one on a linked worktree. */
+	checkoutOfWorkspace(workspaceId: string): Checkout | undefined {
+		const { projects } = this.store.snapshot;
+		const project = projects.find(p => this.owns(p, workspaceId));
+		if (project) {
+			return { project };
+		}
+		const checkout = this.checkoutPaths.get(workspaceId);
+		const found = checkout ? checkoutAt(projects, this.worktrees, checkout) : undefined;
+		return found?.worktree ? found : undefined;
 	}
 
 	projectOfWorkspace(workspaceId: string): Project | undefined {
-		return this.store.snapshot.projects.find(p => this.owns(p, workspaceId));
+		return this.checkoutOfWorkspace(workspaceId)?.project;
 	}
 
 	/** Re-reads panes and agents from herdr. A quiet no-op when the server is not up. */
@@ -122,9 +183,12 @@ export class Sessions {
 			if (!(await this.herdr.serverRunning())) {
 				this.bySession = new Map();
 				this.labels = new Map();
+				this.checkoutPaths = new Map();
 			} else {
 				const [panes, agents, workspaces] = await Promise.all([this.herdr.paneList(), this.herdr.agentList(), this.herdr.workspaceList()]);
 				this.labels = new Map(workspaces.map(w => [w.workspaceId, w.label]));
+				this.checkoutPaths = new Map(workspaces.flatMap(w => (w.checkoutPath ? [[w.workspaceId, w.checkoutPath] as const] : [])));
+				this.noticeNewWorktrees();
 				this.bySession = this.group(panes, agents);
 				this.notifyWaiting();
 				void this.offerIntegrations(agents);
@@ -133,11 +197,48 @@ export class Sessions {
 			// A failed poll keeps `seen`, so a blip does not re-notify everything that is waiting.
 			this.bySession = new Map();
 			this.labels = new Map();
+			this.checkoutPaths = new Map();
 		}
 		this.syncTabNames();
-		const signature = JSON.stringify([[...this.bySession], [...this.labels]]);
+		const signature = JSON.stringify([[...this.bySession], [...this.labels], [...this.checkoutPaths]]);
 		if (signature !== this.lastSignature) {
 			this.lastSignature = signature;
+			this.changed.fire();
+		}
+	}
+
+	/** Re-lists worktrees when herdr has a workspace on a checkout Paddock does not know, e.g. one made in herdr itself. */
+	private noticeNewWorktrees(): void {
+		const known = this.store.snapshot.projects.flatMap(p => [p.path, ...this.worktreesOf(p).map(w => w.path)]);
+		const fresh = [...this.checkoutPaths.values()].filter(c => !known.some(k => samePath(k, c)) && !this.unknownCheckouts.has(c));
+		if (fresh.length) {
+			fresh.forEach(c => this.unknownCheckouts.add(c));
+			void this.refreshWorktrees();
+		}
+	}
+
+	/** Re-reads every project's worktrees from herdr. A quiet no-op when the server is not up. */
+	async refreshWorktrees(): Promise<void> {
+		try {
+			if (!(await this.herdr.serverRunning())) {
+				return;
+			}
+		} catch {
+			return;
+		}
+		const { projects } = this.store.snapshot;
+		const lists = await Promise.all(projects.map(async p => {
+			try {
+				return [p.id, await this.herdr.worktreeList(p.path)] as const;
+			} catch (e) {
+				// Not a git repository: no worktrees. Anything else keeps the last known list.
+				return [p.id, e instanceof HerdrError && e.code === 'not_git_worktree' ? [] : this.worktreesOf(p)] as const;
+			}
+		}));
+		const next: Worktrees = Object.fromEntries(lists);
+		if (JSON.stringify(next) !== JSON.stringify(this.worktrees)) {
+			this.worktrees = next;
+			await this.context.globalState.update(WORKTREES_KEY, next);
 			this.changed.fire();
 		}
 	}
@@ -171,8 +272,8 @@ export class Sessions {
 			if (!session || this.isWatching(session.paneId)) {
 				continue;
 			}
-			const project = this.projectOfWorkspace(session.workspaceId);
-			const where = project ? ` in ${project.name}` : '';
+			const checkout = this.checkoutOfWorkspace(session.workspaceId);
+			const where = checkout ? ` in ${checkoutName(checkout)}` : '';
 			void vscode.window.showInformationMessage(`${session.name}${where} is waiting for input`, 'Go to session').then(async choice => {
 				if (choice !== 'Go to session') {
 					return;
@@ -306,21 +407,41 @@ export class Sessions {
 		return { workspaceId: created.workspaceId, rootPane: created.rootPane };
 	}
 
+	/** The worktree's herdr workspace, opened again if herdr closed it with its last pane. */
+	private async ensureWorktreeWorkspace(project: Project, worktree: WorktreeInfo): Promise<{ workspaceId: string; rootPane?: PaneInfo }> {
+		const open = (await this.herdr.workspaceList()).find(w => w.checkoutPath && samePath(w.checkoutPath, worktree.path));
+		if (open) {
+			return { workspaceId: open.workspaceId };
+		}
+		return this.herdr.worktreeOpen(project.path, worktree.path);
+	}
+
 	/**
 	 * Starts a session in its own herdr tab and opens it. The first session of a new
-	 * workspace reuses the root pane herdr creates with it instead of leaving a stray shell.
+	 * workspace reuses the root pane herdr creates with it instead of leaving a stray shell;
+	 * so does a session started in `pane`, the root pane of a worktree just created.
 	 */
-	async start(project: Project, preset: Preset, name?: string, open = true): Promise<SessionInfo | undefined> {
+	async start(
+		c: Checkout,
+		preset: Preset,
+		options: { name?: string; open?: boolean; pane?: PaneInfo } = {},
+	): Promise<SessionInfo | undefined> {
 		await this.herdr.ensureServer();
-		const { workspaceId, rootPane } = await this.ensureWorkspace(project);
-		const pane = rootPane ?? (await this.herdr.tabCreate(workspaceId, project.path));
+		let pane = options.pane;
+		if (!pane) {
+			const { workspaceId, rootPane } = c.worktree
+				? await this.ensureWorktreeWorkspace(c.project, c.worktree)
+				: await this.ensureWorkspace(c.project);
+			pane = rootPane ?? (await this.herdr.tabCreate(workspaceId, checkoutPath(c)));
+		}
 		if (preset.kind) {
 			const taken = (await this.herdr.agentList()).flatMap(a => (a.name ? [a.name] : []));
-			await this.herdr.agentStart(name ?? nextAgentName(project.name, taken), preset.kind, pane.paneId);
+			const base = c.worktree?.branch ?? c.project.name;
+			await this.herdr.agentStart(options.name ?? nextAgentName(base, taken), preset.kind, pane.paneId);
 		}
 		await this.refresh();
 		const session = this.findSession(pane.paneId);
-		if (session && open) {
+		if (session && (options.open ?? true)) {
 			this.show(session);
 		}
 		return session;
@@ -350,9 +471,10 @@ export class Sessions {
 			isTransient: true,
 		});
 		const open: OpenSession = { paneId: session.paneId, terminalId: session.terminalId, location };
-		const projectId = this.projectOfWorkspace(session.workspaceId)?.id ?? this.currentProject()?.id ?? '';
-		this.terminals.set(session.paneId, { terminal, pty, session: open, name: session.name, projectId });
-		void this.saveLayout(projectId, upsert(this.layouts[projectId] ?? [], open));
+		const checkout = this.checkoutOfWorkspace(session.workspaceId) ?? this.currentCheckout();
+		const key = checkout ? checkoutKey(checkout) : '';
+		this.terminals.set(session.paneId, { terminal, pty, session: open, name: session.name, key });
+		void this.saveLayout(key, upsert(this.layouts[key] ?? [], open));
 		terminal.show(options.preserveFocus);
 		this.changed.fire();
 	}
@@ -361,15 +483,15 @@ export class Sessions {
 		const open = this.terminals.get(paneId);
 		this.terminals.delete(paneId);
 		if (open && !this.leaving) {
-			void this.saveLayout(open.projectId, remove(this.layouts[open.projectId] ?? [], paneId));
+			void this.saveLayout(open.key, remove(this.layouts[open.key] ?? [], paneId));
 			// The pane may be gone (the shell exited); drop it from the sidebar.
 			void this.refresh();
 		}
 		this.changed.fire();
 	}
 
-	private saveLayout(projectId: string, layout: OpenSession[]): Thenable<void> {
-		this.layouts = { ...this.layouts, [projectId]: layout };
+	private saveLayout(key: string, layout: OpenSession[]): Thenable<void> {
+		this.layouts = { ...this.layouts, [key]: layout };
 		return this.context.workspaceState.update(LAYOUTS_KEY, this.layouts);
 	}
 
@@ -387,20 +509,21 @@ export class Sessions {
 
 	/** Reopens this window's saved terminals, then honours a pending "open this session" request. */
 	async restore(): Promise<void> {
-		const project = this.currentProject();
-		if (!project?.workspaceId) {
+		const current = this.currentCheckout();
+		if (!current || (!current.worktree && !current.project.workspaceId)) {
 			return;
 		}
+		const key = checkoutKey(current);
 		await this.refresh();
-		const panes = this.sessionsOf(project);
-		for (const saved of restorable(this.layouts[project.id] ?? [], panes)) {
+		const panes = this.sessionsIn(current);
+		for (const saved of restorable(this.layouts[key] ?? [], panes)) {
 			const session = panes.find(p => p.paneId === saved.paneId);
 			if (session) {
 				this.show(session, { location: saved.location, preserveFocus: true });
 			}
 		}
 		const pending = this.context.globalState.get<PendingOpen>(PENDING_KEY);
-		if (pending?.projectId === project.id) {
+		if (pending?.key === key) {
 			await this.context.globalState.update(PENDING_KEY, undefined);
 			const session = panes.find(p => p.paneId === pending.paneId);
 			if (session) {
@@ -409,18 +532,18 @@ export class Sessions {
 		}
 	}
 
-	/** Reopens the folder in this same window; its sessions reattach after the reload. */
-	async switchTo(project: Project, open?: SessionInfo): Promise<void> {
+	/** Reopens the project or worktree folder in this same window; its sessions reattach after the reload. */
+	async switchTo(c: Checkout, open?: SessionInfo): Promise<void> {
 		if (open) {
-			await this.context.globalState.update(PENDING_KEY, { projectId: project.id, paneId: open.paneId } satisfies PendingOpen);
+			await this.context.globalState.update(PENDING_KEY, { key: checkoutKey(c), paneId: open.paneId } satisfies PendingOpen);
 		}
 		if (this.switchMode() === 'swap') {
-			await this.swapTo(project);
+			await this.swapTo(c);
 			return;
 		}
 		this.markLeaving();
 		try {
-			await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(project.path), { forceNewWindow: false });
+			await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(checkoutPath(c)), { forceNewWindow: false });
 		} finally {
 			// If the window did not go away (cancelled, folder missing), closing terminals matters again.
 			this.leaving = false;
@@ -432,8 +555,8 @@ export class Sessions {
 	 * workspace with a fixed placeholder folder first; after that, switching replaces only
 	 * the folder after it, which VS Code does without restarting extensions.
 	 */
-	private async swapTo(project: Project): Promise<void> {
-		const target = { uri: vscode.Uri.file(project.path), name: project.name };
+	private async swapTo(c: Checkout): Promise<void> {
+		const target = { uri: vscode.Uri.file(checkoutPath(c)), name: checkoutName(c) };
 		const folders = vscode.workspace.workspaceFolders ?? [];
 		await mkdir(this.placeholder, { recursive: true });
 
@@ -442,7 +565,7 @@ export class Sessions {
 			// to save it on every close). Opening it reloads the window once; the pending-open
 			// request stored by switchTo() finishes the job afterwards.
 			const file = vscode.Uri.file(path.join(this.context.globalStorageUri.fsPath, 'Paddock.code-workspace'));
-			const content = { folders: [{ name: 'Paddock', path: this.placeholder }, { name: project.name, path: project.path }] };
+			const content = { folders: [{ name: 'Paddock', path: this.placeholder }, { name: target.name, path: target.uri.fsPath }] };
 			await writeFile(file.fsPath, JSON.stringify(content, null, '\t') + '\n');
 			this.markLeaving();
 			try {
@@ -452,13 +575,13 @@ export class Sessions {
 			}
 			return;
 		}
-		if (this.currentProject()?.id === project.id) {
+		if (this.isCurrent(c)) {
 			return;
 		}
 
 		// Save the old project's open files and close them, so they do not follow us into the next project.
 		// Closing can prompt about unsaved changes; cancelling stops the switch.
-		const previous = this.currentProject();
+		const previous = this.currentCheckout();
 		if (previous) {
 			const { snapshot, tabs } = await captureEditors();
 			// Unsaved edits travel in the snapshot; revert the tabs so closing them does not ask.
@@ -467,7 +590,7 @@ export class Sessions {
 				await restoreEditors(snapshot);
 				throw new Error('Switch cancelled: save or discard your unsaved changes first');
 			}
-			await this.saveEditors(previous.id, snapshot);
+			await this.saveEditors(checkoutKey(previous), snapshot);
 		}
 
 		// Leave the old project's terminals in herdr and in the saved layout, but close their tabs.
@@ -494,24 +617,24 @@ export class Sessions {
 		}
 		if (!started) {
 			const now = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath).join(', ');
-			throw new Error(`VS Code refused to swap the project folder (target ${project.path}; window folders: ${now})`);
+			throw new Error(`VS Code refused to swap the project folder (target ${target.uri.fsPath}; window folders: ${now})`);
 		}
 		await changed;
-		await restoreEditors(this.editors[project.id]);
+		await restoreEditors(this.editors[checkoutKey(c)]);
 		await this.restore();
 		await this.refresh();
 	}
 
-	private saveEditors(projectId: string, snapshot: EditorSnapshot): Thenable<void> {
-		this.editors = { ...this.editors, [projectId]: snapshot };
+	private saveEditors(key: string, snapshot: EditorSnapshot): Thenable<void> {
+		this.editors = { ...this.editors, [key]: snapshot };
 		return this.context.workspaceState.update(EDITORS_KEY, this.editors);
 	}
 
 	/** Opens a session, switching project first when it belongs to another one. */
 	async openSession(session: SessionInfo): Promise<void> {
-		const project = this.projectOfWorkspace(session.workspaceId);
-		if (project && this.currentProject()?.id !== project.id) {
-			await this.switchTo(project, session);
+		const checkout = this.checkoutOfWorkspace(session.workspaceId);
+		if (checkout && !this.isCurrent(checkout)) {
+			await this.switchTo(checkout, session);
 			return;
 		}
 		if (!this.terminals.has(session.paneId)) {
@@ -530,9 +653,10 @@ export class Sessions {
 	async kill(session: SessionInfo): Promise<void> {
 		this.dispose(session.paneId);
 		await this.herdr.paneClose(session.paneId);
-		const projectId = this.projectOfWorkspace(session.workspaceId)?.id;
-		if (projectId) {
-			await this.saveLayout(projectId, remove(this.layouts[projectId] ?? [], session.paneId));
+		const checkout = this.checkoutOfWorkspace(session.workspaceId);
+		if (checkout) {
+			const key = checkoutKey(checkout);
+			await this.saveLayout(key, remove(this.layouts[key] ?? [], session.paneId));
 		}
 		await this.refresh();
 	}
@@ -548,14 +672,73 @@ export class Sessions {
 	}
 
 	/** Kills the session and starts a fresh one of the same kind and name. */
-	async restart(session: SessionInfo, project: Project): Promise<void> {
+	async restart(session: SessionInfo, c: Checkout): Promise<void> {
 		const location = this.terminals.get(session.paneId)?.session.location;
 		await this.kill(session);
 		const preset: Preset = { id: session.kind ?? 'shell', label: session.name, kind: session.kind };
-		const started = await this.start(project, preset, session.kind ? session.name : undefined);
+		const started = await this.start(c, preset, { name: session.kind ? session.name : undefined });
 		if (started && location && location !== this.location()) {
 			this.dispose(started.paneId);
 			this.show(started, { location });
 		}
+	}
+
+	// --- worktrees -----------------------------------------------------------
+
+	/**
+	 * Creates a worktree on `branch` (a new branch when none exists) through herdr, which
+	 * puts the checkout under its worktrees directory and opens a workspace on it.
+	 */
+	async createWorktree(project: Project, branch: string): Promise<{ checkout: Checkout; rootPane?: PaneInfo }> {
+		await this.herdr.ensureServer();
+		const { worktree, rootPane } = await this.herdr.worktreeCreate(project.path, branch);
+		await this.refreshWorktrees();
+		await this.refresh();
+		return { checkout: { project, worktree }, rootPane };
+	}
+
+	/**
+	 * Removes a linked worktree's checkout and closes its workspace, stopping its sessions.
+	 * The branch stays. With uncommitted changes it asks `confirmForce` before forcing.
+	 * Returns false when that was declined.
+	 */
+	async removeWorktree(c: Checkout, confirmForce: () => Promise<boolean>): Promise<boolean> {
+		if (!c.worktree) {
+			throw new Error('Only a linked worktree can be removed');
+		}
+		if (this.isCurrent(c)) {
+			throw new Error(`This window has ${checkoutName(c)} open. Switch to another checkout before removing it.`);
+		}
+		await this.herdr.ensureServer();
+		// herdr removes through the worktree's workspace, so open one if herdr closed it.
+		const { workspaceId, rootPane } = await this.ensureWorktreeWorkspace(c.project, c.worktree);
+		try {
+			await this.herdr.worktreeRemove(workspaceId, false);
+		} catch (e) {
+			if (!(e instanceof HerdrError && e.code === 'dirty_worktree_requires_force')) {
+				throw e;
+			}
+			if (!(await confirmForce())) {
+				if (rootPane) {
+					// Opened only to remove it; do not leave a stray shell behind.
+					await this.herdr.paneClose(rootPane.paneId);
+				}
+				await this.refresh();
+				return false;
+			}
+			await this.herdr.worktreeRemove(workspaceId, true);
+		}
+		// herdr closed the workspace and its panes; drop their tabs too.
+		for (const s of this.bySession.get(workspaceId) ?? []) {
+			this.dispose(s.paneId);
+		}
+		const key = checkoutKey(c);
+		this.layouts = Object.fromEntries(Object.entries(this.layouts).filter(([k]) => k !== key));
+		this.editors = Object.fromEntries(Object.entries(this.editors).filter(([k]) => k !== key));
+		await this.context.workspaceState.update(LAYOUTS_KEY, this.layouts);
+		await this.context.workspaceState.update(EDITORS_KEY, this.editors);
+		await this.refreshWorktrees();
+		await this.refresh();
+		return true;
 	}
 }

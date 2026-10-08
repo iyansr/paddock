@@ -34,7 +34,7 @@ export class ProjectsDnd implements vscode.TreeDragAndDropController<Node> {
 		}
 		const projectIds = dragged.filter(n => n.kind === 'project').map(n => n.id);
 		const groupIds = dragged.filter(n => n.kind === 'group').map(n => n.id);
-		if (target?.kind === 'session') {
+		if (target?.kind === 'session' || target?.kind === 'worktree') {
 			return;
 		}
 
