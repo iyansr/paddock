@@ -5,6 +5,7 @@ import { captureEditors, closeEditors, EDITORS_KEY, restoreEditors, revertStashe
 import { Herdr } from './herdr/cli';
 import { displayName, nextAgentName } from './herdr/names';
 import type { AgentInfo, PaneInfo } from './herdr/parse';
+import { mapStatus, newlyWaiting, waitingByWorkspace, type SessionState, type StatusEntry } from './herdr/status';
 import { HerdrPty } from './herdr/terminal';
 import { LAYOUTS_KEY, remove, restorable, upsert, type Layouts, type OpenSession, type TerminalLocation } from './layout';
 import type { Preset } from './presets';
@@ -17,11 +18,14 @@ export interface SessionInfo {
 	name: string;
 	/** herdr agent kind, or undefined for a plain shell pane. */
 	kind?: string;
-	status: string;
+	status: SessionState;
 	open: boolean;
 }
 
 const PENDING_KEY = 'paddock.pendingOpen';
+const INTEGRATION_ASKED_KEY = 'paddock.integrationAsked';
+/** Agent kinds herdr can read exact state from once its integration is installed. */
+const INTEGRATION_KINDS = new Set(['claude', 'codex']);
 
 interface PendingOpen {
 	projectId: string;
@@ -45,7 +49,11 @@ export class Sessions {
 	readonly onDidChange = this.changed.event;
 
 	private bySession = new Map<string, SessionInfo[]>();
+	/** Label of each live herdr workspace. herdr ids are positional (`w1`) and get reused, so the label tells whose it is. */
+	private labels = new Map<string, string>();
 	private lastSignature = '';
+	/** Last seen state per pane; undefined until the first successful poll, which only sets the baseline. */
+	private seen: Map<string, SessionState> | undefined;
 	private readonly terminals = new Map<string, OpenTerminal>();
 	private layouts: Layouts;
 	private editors: EditorSnapshots;
@@ -75,8 +83,13 @@ export class Sessions {
 
 	// --- reading -------------------------------------------------------------
 
+	/** True when the project's stored workspace id still names the workspace herdr made for it. */
+	private owns(project: Project, workspaceId: string): boolean {
+		return project.workspaceId === workspaceId && this.labels.get(workspaceId) === project.name;
+	}
+
 	sessionsOf(project: Project): SessionInfo[] {
-		return (project.workspaceId && this.bySession.get(project.workspaceId)) || [];
+		return (project.workspaceId && this.owns(project, project.workspaceId) && this.bySession.get(project.workspaceId)) || [];
 	}
 
 	/** Folder Paddock keeps first in the window so the project folder after it can be swapped without a reload. */
@@ -100,7 +113,7 @@ export class Sessions {
 	}
 
 	projectOfWorkspace(workspaceId: string): Project | undefined {
-		return this.store.snapshot.projects.find(p => p.workspaceId === workspaceId);
+		return this.store.snapshot.projects.find(p => this.owns(p, workspaceId));
 	}
 
 	/** Re-reads panes and agents from herdr. A quiet no-op when the server is not up. */
@@ -108,19 +121,117 @@ export class Sessions {
 		try {
 			if (!(await this.herdr.serverRunning())) {
 				this.bySession = new Map();
+				this.labels = new Map();
 			} else {
-				const [panes, agents] = await Promise.all([this.herdr.paneList(), this.herdr.agentList()]);
+				const [panes, agents, workspaces] = await Promise.all([this.herdr.paneList(), this.herdr.agentList(), this.herdr.workspaceList()]);
+				this.labels = new Map(workspaces.map(w => [w.workspaceId, w.label]));
 				this.bySession = this.group(panes, agents);
+				this.notifyWaiting();
+				void this.offerIntegrations(agents);
 			}
 		} catch {
+			// A failed poll keeps `seen`, so a blip does not re-notify everything that is waiting.
 			this.bySession = new Map();
+			this.labels = new Map();
 		}
 		this.syncTabNames();
-		const signature = JSON.stringify([...this.bySession]);
+		const signature = JSON.stringify([[...this.bySession], [...this.labels]]);
 		if (signature !== this.lastSignature) {
 			this.lastSignature = signature;
 			this.changed.fire();
 		}
+	}
+
+	private entries(): StatusEntry[] {
+		return [...this.bySession.values()].flat().map(s => ({ paneId: s.paneId, workspaceId: s.workspaceId, state: s.status }));
+	}
+
+	/** Sessions waiting on me, per project id; includes projects that are not open. */
+	waitingByProject(): Map<string, number> {
+		const counts = new Map<string, number>();
+		for (const [workspaceId, n] of waitingByWorkspace(this.entries())) {
+			const project = this.projectOfWorkspace(workspaceId);
+			if (project) {
+				counts.set(project.id, n);
+			}
+		}
+		return counts;
+	}
+
+	/** Shows a notification for each session that just started waiting. */
+	private notifyWaiting(): void {
+		const entries = this.entries();
+		const previous = this.seen;
+		this.seen = new Map(entries.map(e => [e.paneId, e.state]));
+		if (!previous) {
+			return;
+		}
+		for (const entry of newlyWaiting(previous, entries)) {
+			const session = this.findSession(entry.paneId);
+			if (!session || this.isWatching(session.paneId)) {
+				continue;
+			}
+			const project = this.projectOfWorkspace(session.workspaceId);
+			const where = project ? ` in ${project.name}` : '';
+			void vscode.window.showInformationMessage(`${session.name}${where} is waiting for input`, 'Go to session').then(async choice => {
+				if (choice !== 'Go to session') {
+					return;
+				}
+				try {
+					if (session.kind) {
+						// Marks the completion as seen in herdr.
+						await this.herdr.agentFocus(session.paneId);
+					}
+					await this.openSession(session);
+				} catch (e) {
+					void vscode.window.showErrorMessage(`Paddock: ${e instanceof Error ? e.message : String(e)}`);
+				}
+			});
+		}
+	}
+
+	private offering = false;
+
+	/**
+	 * Without its hook, herdr guesses an agent's state from the screen. Offers, once per kind,
+	 * to install herdr's hook for the agents in use. Installing edits the agent's own config,
+	 * so it only happens after the click.
+	 */
+	private async offerIntegrations(agents: AgentInfo[]): Promise<void> {
+		const asked = this.context.globalState.get<string[]>(INTEGRATION_ASKED_KEY) ?? [];
+		const wanted = [...new Set(agents.map(a => a.kind))].filter(k => INTEGRATION_KINDS.has(k) && !asked.includes(k));
+		if (this.offering || wanted.length === 0) {
+			return;
+		}
+		this.offering = true;
+		try {
+			const status = await this.herdr.integrationStatus();
+			for (const kind of wanted) {
+				if (status.find(s => s.kind === kind)?.state === 'current') {
+					continue;
+				}
+				await this.context.globalState.update(INTEGRATION_ASKED_KEY, [...(this.context.globalState.get<string[]>(INTEGRATION_ASKED_KEY) ?? []), kind]);
+				const choice = await vscode.window.showInformationMessage(
+					`Install herdr's ${kind} integration? It adds a hook to your ${kind} config so Paddock shows exact session status instead of guessing from the screen.`,
+					'Install',
+					'Not now',
+				);
+				if (choice === 'Install') {
+					await this.herdr.integrationInstall(kind);
+					void vscode.window.showInformationMessage(`herdr ${kind} integration installed. Restart running ${kind} sessions to pick it up.`);
+				}
+			}
+		} catch (e) {
+			void vscode.window.showErrorMessage(`Paddock: ${e instanceof Error ? e.message : String(e)}`);
+		} finally {
+			this.offering = false;
+		}
+	}
+
+	/** True when I am already looking at this session's terminal. */
+	private isWatching(paneId: string): boolean {
+		const open = this.terminals.get(paneId);
+		return !!open && vscode.window.state.focused && vscode.window.activeTerminal === open.terminal;
 	}
 
 	/** Keeps open terminal tabs titled like their session as it changes (a shell becomes claude, a rename). */
@@ -138,7 +249,8 @@ export class Sessions {
 	startPolling(intervalMs: number): vscode.Disposable {
 		let busy = false;
 		const timer = setInterval(() => {
-			if (busy || !vscode.window.state.focused) {
+			// Polls while unfocused too: a waiting agent must notify within seconds.
+			if (busy) {
 				return;
 			}
 			busy = true;
@@ -160,7 +272,7 @@ export class Sessions {
 				workspaceId: pane.workspaceId,
 				name: displayName(agent?.name, agent?.kind, pane.paneId),
 				kind: agent?.kind,
-				status: agent?.status ?? pane.agentStatus,
+				status: mapStatus(agent?.status ?? pane.agentStatus, !!agent),
 				open: this.terminals.has(pane.paneId),
 			};
 			grouped.set(pane.workspaceId, [...(grouped.get(pane.workspaceId) ?? []), info]);
@@ -184,7 +296,8 @@ export class Sessions {
 	private async ensureWorkspace(project: Project): Promise<{ workspaceId: string; rootPane?: PaneInfo }> {
 		if (project.workspaceId) {
 			const known = await this.herdr.workspaceList();
-			if (known.some(w => w.workspaceId === project.workspaceId)) {
+			// Same id with another label means herdr reused it for a different project's workspace.
+			if (known.some(w => w.workspaceId === project.workspaceId && w.label === project.name)) {
 				return { workspaceId: project.workspaceId };
 			}
 		}
@@ -369,9 +482,19 @@ export class Sessions {
 				resolve();
 			});
 		});
-		const started = vscode.workspace.updateWorkspaceFolders(1, folders.length > 1 ? folders.length - 1 : 0, target);
+		// VS Code answers false while an earlier folder update is still unconfirmed (and for
+		// invalid ranges or duplicate folders), so retry briefly before giving up.
+		let started = false;
+		for (let attempt = 0; attempt < 20 && !started; attempt++) {
+			const now = vscode.workspace.workspaceFolders ?? [];
+			started = vscode.workspace.updateWorkspaceFolders(1, Math.max(now.length - 1, 0), target);
+			if (!started) {
+				await new Promise(r => setTimeout(r, 100));
+			}
+		}
 		if (!started) {
-			throw new Error('VS Code refused to swap the project folder');
+			const now = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath).join(', ');
+			throw new Error(`VS Code refused to swap the project folder (target ${project.path}; window folders: ${now})`);
 		}
 		await changed;
 		await restoreEditors(this.editors[project.id]);

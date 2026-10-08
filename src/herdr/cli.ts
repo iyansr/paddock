@@ -7,6 +7,7 @@ import {
 	HerdrError, parseAgentList, parseCreated, parseEnvelope, parsePaneList, parseServerRunning,
 	parseWorkspaceList, type AgentInfo, type PaneInfo, type WorkspaceInfo,
 } from './parse';
+import { parseIntegrationStatus, type IntegrationStatus } from './status';
 
 export interface HerdrConfig {
 	/** `paddock.herdrPath`; empty means look for herdr. */
@@ -150,6 +151,24 @@ export class Herdr {
 			if (!(e instanceof HerdrError && e.code === 'agent_not_ready')) {
 				throw e;
 			}
+		}
+	}
+
+	/** Focuses the agent in herdr, which marks a finished run as seen. */
+	async agentFocus(target: string): Promise<void> {
+		await this.call(['agent', 'focus', target]);
+	}
+
+	async integrationStatus(): Promise<IntegrationStatus[]> {
+		const { stdout } = await this.exec(['integration', 'status']);
+		return parseIntegrationStatus(stdout);
+	}
+
+	/** Writes the agent's own config (for example ~/.claude/settings.json); only after the user agreed in the UI. */
+	async integrationInstall(kind: string): Promise<void> {
+		const { failed, stdout } = await this.exec(['integration', 'install', kind], 30_000);
+		if (failed) {
+			throw new HerdrError(String(failed.code ?? 'exec_failed'), stdout.trim() || failed.message);
 		}
 	}
 

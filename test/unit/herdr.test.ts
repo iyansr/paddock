@@ -5,6 +5,7 @@ import {
 	HerdrError, isSupportedVersion, parseAgentList, parseCreated, parseEnvelope, parsePaneList,
 	parseServerRunning, parseWorkspaceList,
 } from '../../src/herdr/parse';
+import { mapStatus, newlyWaiting, parseIntegrationStatus, waitingByWorkspace, type StatusEntry } from '../../src/herdr/status';
 import { remove, restorable, upsert, type OpenSession } from '../../src/layout';
 
 // Captured from herdr 0.9.3.
@@ -124,5 +125,40 @@ describe('layout', () => {
 	});
 	it('restores only panes that still hold the same terminal', () => {
 		expect(restorable([a, b], [{ paneId: 'w1:p1', terminalId: 't1' }, { paneId: 'w1:p2', terminalId: 'other' }])).toEqual([a]);
+	});
+});
+
+describe('status', () => {
+	it('maps herdr states', () => {
+		expect(mapStatus('working', true)).toBe('running');
+		expect(mapStatus('unknown', true)).toBe('running');
+		expect(mapStatus('blocked', true)).toBe('waiting');
+		expect(mapStatus('done', true)).toBe('done');
+		expect(mapStatus('idle', true)).toBe('done');
+		expect(mapStatus('blocked', false)).toBe('running');
+	});
+	const e = (paneId: string, workspaceId: string, state: StatusEntry['state']): StatusEntry => ({ paneId, workspaceId, state });
+	it('counts waiting per workspace', () => {
+		const counts = waitingByWorkspace([e('w1:p1', 'w1', 'waiting'), e('w1:p2', 'w1', 'waiting'), e('w2:p1', 'w2', 'done')]);
+		expect(counts).toEqual(new Map([['w1', 2]]));
+	});
+	it('reports only sessions that just started waiting', () => {
+		const previous = new Map<string, 'running' | 'waiting' | 'done'>([['w1:p1', 'waiting'], ['w1:p2', 'running']]);
+		const now = [e('w1:p1', 'w1', 'waiting'), e('w1:p2', 'w1', 'waiting'), e('w1:p3', 'w1', 'waiting'), e('w1:p4', 'w1', 'running')];
+		expect(newlyWaiting(previous, now).map(x => x.paneId)).toEqual(['w1:p2', 'w1:p3']);
+	});
+	it('parses integration status', () => {
+		const text = [
+			'claude: outdated (v7 < v10) (/Users/x/.claude/hooks/herdr-agent-state.sh)',
+			'codex: not installed (/x/herdr-agent-state.sh)',
+			'cursor: current (v1) (/x/.cursor/herdr-agent-state.sh)',
+			'letta (experimental): not installed (/x/y.sh)',
+		].join('\n');
+		expect(parseIntegrationStatus(text)).toEqual([
+			{ kind: 'claude', state: 'outdated' },
+			{ kind: 'codex', state: 'not installed' },
+			{ kind: 'cursor', state: 'current' },
+			{ kind: 'letta', state: 'not installed' },
+		]);
 	});
 });
