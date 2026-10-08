@@ -231,6 +231,19 @@ export class Herdr {
     await this.call(['pane', 'rename', paneId, label]);
   }
 
+  /** Types `text` into the pane without pressing Enter. */
+  async paneSendText(paneId: string, text: string): Promise<void> {
+    // herdr 0.9.3 prints nothing on success, unlike the commands `call` reads.
+    const { stderr, failed } = await this.exec(['pane', 'send-text', paneId, text]);
+    if (failed) {
+      const reply = stderr.trim();
+      if (reply.startsWith('{')) {
+        parseEnvelope(reply);
+      }
+      throw new HerdrError(String(failed.code ?? 'exec_failed'), reply || failed.message);
+    }
+  }
+
   /** Kills the pane. Only the explicit Kill action may call this. */
   async paneClose(paneId: string): Promise<void> {
     await this.call(['pane', 'close', paneId]);

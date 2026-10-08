@@ -8,7 +8,7 @@ Paddock is a VS Code extension that keeps coding agents running while I switch p
 
 - Agents run in [herdr](https://herdr.dev/), not in VS Code. VS Code only draws their terminals, so agents survive window reloads and project switches.
 - The sidebar shows groups, projects, worktrees and agent sessions with live status badges.
-- A Chromium window driven over the Chrome DevTools Protocol (CDP) lets me pick an element and copy its context or send it to an agent.
+- VS Code's integrated browser, with an Orca-style picker Paddock injects over the Chrome DevTools Protocol (CDP), lets me pick an element and copy its context or send it to an agent. It uses VS Code's `browser` API proposal; F5 passes `--enable-proposed-api`, an installed build needs it in `argv.json`.
 
 Read these before changing behaviour:
 
@@ -50,7 +50,7 @@ src/
   tree/model.ts       sidebar rows as plain data, webview message validation (pure)
   tree/view.ts        WebviewViewProvider for paddock.projects
   webview/sidebar.ts  sidebar script, runs in the webview (bundled to dist/sidebar.js)
-  picker/             Playwright launch, CDP capture, pick format, copy and send
+  picker/             integrated browser tabs over CDP (browser.ts, cdp.ts), the in-page picker (page.ts), pick format, copy and send
 test/
   unit/               Vitest
   integration/        @vscode/test-electron
@@ -88,7 +88,7 @@ docs/
 
 - TypeScript strict mode. No `any` except at the JSON boundary in `herdr/cli.ts`, where responses are validated before use.
 - Small modules with one job each. Keep VS Code imports out of `herdr/`, `picker/format.ts` and `store.ts` logic so they stay unit-testable.
-- Do not add a runtime dependency without asking. Current ones: `playwright-core`.
+- Do not add a runtime dependency without asking. There are none at the moment.
 
 ## Testing
 

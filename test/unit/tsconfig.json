@@ -11,6 +11,12 @@
     "../integration/**/*.ts",
     "../../src/herdr/cli.ts",
     "../../src/tree/model.ts",
-    "../../src/checkouts.ts"
+    "../../src/checkouts.ts",
+    "../../src/picker/format.ts",
+    "../../src/picker/files.ts",
+    "../../src/picker/page.ts",
+    "../../src/picker/protocol.ts",
+    "../../src/picker/page-picker.ts",
+    "../../src/picker/cdp.ts"
   ]
 }

@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { registerCommands } from './commands';
 import { Herdr, type HerdrConfig } from './herdr/cli';
 import { isSupportedVersion, MIN_HERDR_VERSION } from './herdr/parse';
+import { Picker } from './picker/controller';
 import { Sessions } from './sessions';
 import { Store } from './store';
 import { ProjectsView } from './tree/view';
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
   const herdr = new Herdr(readConfig);
   const sessions = new Sessions(herdr, store, context);
   active = sessions;
+  const picker = new Picker(herdr, sessions);
 
   context.subscriptions.push(
     new ProjectsView(context.extensionUri, store, sessions).register(),
@@ -32,11 +34,14 @@ export function activate(context: vscode.ExtensionContext) {
     }),
     sessions.startPolling(2000),
     sessions.watchBranches(),
-    ...registerCommands(store, sessions),
+    picker,
+    ...registerCommands(store, sessions, picker),
   );
 
   // Never await herdr here: activation must not block startup.
   void startHerdr(herdr, sessions);
+  // Attaching to browser tabs is asynchronous too.
+  picker.start();
 }
 
 async function startHerdr(herdr: Herdr, sessions: Sessions): Promise<void> {

@@ -144,6 +144,18 @@
         "title": "Remove Worktree…",
         "category": "Paddock",
         "icon": "$(trash)"
+      },
+      {
+        "command": "paddock.openBrowser",
+        "title": "Open Browser",
+        "category": "Paddock",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "paddock.pickElement",
+        "title": "Pick Element in Browser",
+        "category": "Paddock",
+        "icon": "$(inspect)"
       }
     ],
     "menus": {
@@ -157,6 +169,11 @@
           "command": "paddock.newGroup",
           "when": "view == paddock.projects",
           "group": "navigation@2"
+        },
+        {
+          "command": "paddock.openBrowser",
+          "when": "view == paddock.projects",
+          "group": "navigation@3"
         }
       ],
       "commandPalette": [
@@ -300,10 +317,20 @@
           "markdownDescription": "How clicking a project switches to it. `reload` reopens the folder (VS Code reloads the window). `swap` (experimental) keeps the window as a multi-root workspace with a placeholder folder first and swaps only the project folder, which avoids the reload."
         }
       }
-    }
+    },
+    "keybindings": [
+      {
+        "command": "paddock.pickElement",
+        "key": "ctrl+alt+p",
+        "mac": "cmd+alt+p"
+      }
+    ]
   },
   "activationEvents": [],
   "engines": {
     "vscode": "^1.140.0"
-  }
+  },
+  "enabledApiProposals": [
+    "browser"
+  ]
 }

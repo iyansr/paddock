@@ -105,6 +105,8 @@ export class Sessions {
   private readonly terminals = new Map<string, OpenTerminal>();
   private layouts: Layouts;
   private editors: EditorSnapshots;
+  /** Pane of the Paddock terminal focused last; a browser pick is sent there. */
+  private lastFocused: string | undefined;
   /** Set while the window is going away, so closing terminals does not erase the saved layout. */
   private leaving = false;
 
@@ -120,6 +122,14 @@ export class Sessions {
     context.subscriptions.push(
       // The open project changes when a folder is swapped in place.
       vscode.workspace.onDidChangeWorkspaceFolders(() => this.changed.fire()),
+      vscode.window.onDidChangeActiveTerminal(t => {
+        for (const [paneId, open] of this.terminals) {
+          if (open.terminal === t) {
+            this.lastFocused = paneId;
+            this.changed.fire();
+          }
+        }
+      }),
       vscode.window.onDidCloseTerminal(t => {
         for (const [paneId, open] of this.terminals) {
           if (open.terminal === t) {
@@ -426,6 +436,20 @@ export class Sessions {
     } finally {
       this.offering = false;
     }
+  }
+
+  /**
+   * Where a browser pick goes: the last focused Paddock terminal, else an agent
+   * in this window's checkout, preferring one whose terminal is open.
+   */
+  pickTarget(): SessionInfo | undefined {
+    const last = this.lastFocused && this.findSession(this.lastFocused);
+    if (last) {
+      return last;
+    }
+    const current = this.currentCheckout();
+    const list = current ? this.sessionsIn(current) : [];
+    return list.find(s => s.kind && this.terminals.has(s.paneId)) ?? list.find(s => s.kind) ?? list[0];
   }
 
   /** True when I am already looking at this session's terminal. */

@@ -49,6 +49,37 @@ describe('herdr (real server, throwaway session)', () => {
     expect((await herdr.paneList(workspaceId)).map(p => p.paneId)).toEqual([rootPane.paneId]);
   });
 
+  it('send-text types into a pane without pressing Enter', async () => {
+    const { rootPane } = await herdr.workspaceCreate('/tmp', 'sendtext');
+    const proc = await herdr.spawnControl(rootPane.paneId, 80, 24);
+    const lines = new LineSplitter();
+    let screen = '';
+    proc.stdout.setEncoding('utf8');
+    proc.stdout.on('data', (chunk: string) => {
+      for (const line of lines.push(chunk)) {
+        const rec = parseStreamLine(line);
+        if (rec?.type === 'frame') {
+          screen += rec.bytes.toString('utf8');
+        }
+      }
+    });
+    const until = async (ok: () => boolean) => {
+      for (let i = 0; i < 100 && !ok(); i++) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+      expect(ok()).toBe(true);
+    };
+    await until(() => screen.length > 0);
+    await herdr.paneSendText(rootPane.paneId, ' echo sent-$((6*7)) ');
+    await until(() => screen.includes('sent-$((6*7))'));
+    await new Promise(r => setTimeout(r, 500));
+    expect(screen).not.toContain('sent-42');
+    proc.stdin.write(encodeCommand({ type: 'terminal.input', text: '\r' }));
+    await until(() => screen.includes('sent-42'));
+    proc.stdin.write(encodeCommand({ type: 'terminal.release' }));
+    await herdr.paneClose(rootPane.paneId);
+  });
+
   it('streams a pane: frames out, input in, resize, release detaches', async () => {
     const { rootPane } = await herdr.workspaceCreate('/tmp', 'stream');
     const proc = await herdr.spawnControl(rootPane.paneId, 80, 24);

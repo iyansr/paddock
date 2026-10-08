@@ -53,14 +53,14 @@ All requirements below are in scope for v1; later work is listed at the end.
 
 ### Element picker
 
-- **R12 Open browser.** "Open Browser" launches a headed Chromium window for the current project, at a URL from settings (default `http://localhost:3000`).
-- **R13 Pick mode.** A floating Pick button turns on hover highlighting, the same overlay as DevTools inspect, labelled with the element's tag, text and size. Clicking an element selects it; Esc cancels.
+- **R12 Open browser.** One "Open Browser" button opens an empty tab of VS Code's own integrated browser in the current editor group, next to my other tabs; I type the URL. No separate window, no debugger, and scrolling and typing feel like any browser.
+- **R13 Pick mode.** Works like Orca's grab mode. A small Pick button sits in the corner of every page (VS Code does not let extensions add buttons to the browser's own toolbar); a keyboard shortcut does the same. Pick mode highlights the element under the mouse with a label of its tag, role, text and size. Clicking selects it without the page seeing the click; C copies the hovered element straight away; Esc cancels.
 - **R14 Capture.** A pick captures the page URL, tag and role, a CSS selector, the nearest React component, size, text content, nearby text, key computed styles, trimmed outer HTML, the ancestor and full DOM paths, and a cropped screenshot. It's written as plain text in the same layout as Orca's browser context, so any agent can read it.
 - **R15 Optional comment.** After picking, I can type a short instruction that is saved with the pick.
 - **R16 Send to agent.** The pick is written to `.paddock/picks/<timestamp>.md` and `.png`. Paddock then types ` @<path>  ` into the chosen session's input without pressing Enter, so I can finish the prompt myself. The target defaults to the last focused session.
 - **R17 Keep git clean.** Paddock adds `.paddock/` to `.git/info/exclude` the first time it writes there.
 
-* **R18 Copy instead of send.** A Copy button puts the same browser context on the clipboard, with the instruction from R15 at the end, so I can paste it into any agent, chat or issue. The screenshot stays in `.paddock/picks/` and its path is included in the text.
+* **R18 Copy instead of send.** A Copy button puts the same browser context on the clipboard, with the instruction from R15 at the end, so I can paste it into any agent, chat or issue. The screenshot stays in `.paddock/picks/` and its path is included in the text. Copy goes straight back to pick mode for the next element; Send ends it.
 
 ## Constraints and success measures
 
@@ -69,7 +69,7 @@ All requirements below are in scope for v1; later work is listed at the end.
 - **Platforms:** macOS first, then Linux. herdr 0.9.3 or later must be installed; Paddock checks on activation and offers herdr's one-line installer.
 - **One window:** Paddock never opens a second VS Code window.
 - **Memory:** only the open project's language servers run. Background projects cost only their agent processes.
-- **Browser:** use the installed Google Chrome when present, falling back to Playwright's Chromium, to avoid a large download.
+- **Browser:** use VS Code's integrated browser, so Paddock ships no browser and no browser library.
 - **Agent-agnostic:** herdr recognises Claude Code, Codex and over 20 other agent CLIs and reports their state. Anything else runs as a plain pane that shows only running or exited.
 - **Privacy:** picks stay on disk in the project; nothing is uploaded.
 
@@ -87,7 +87,6 @@ All requirements below are in scope for v1; later work is listed at the end.
 ### Later versions
 
 - Agents on other machines, through herdr's saved SSH machines.
-- Browser embedded inside VS Code instead of a separate Chromium window.
 - Area screenshots and console-log capture from the browser.
 - Source location for picked elements (file and line), using a dev-build plugin that stamps it onto JSX.
 - Comments on diff lines sent back to the agent.

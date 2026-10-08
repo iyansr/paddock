@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { checkoutName, type Checkout } from './checkouts';
 import { AGENT_NAME } from './herdr/names';
 import type { PaneInfo } from './herdr/parse';
+import type { Picker } from './picker/controller';
 import { PRESETS } from './presets';
 import type { Sessions } from './sessions';
 import {
@@ -37,7 +38,7 @@ function guarded<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...ar
   };
 }
 
-export function registerCommands(store: Store, sessions: Sessions): vscode.Disposable[] {
+export function registerCommands(store: Store, sessions: Sessions, picker: Picker): vscode.Disposable[] {
   const projectOf = (node?: Node) =>
     node?.kind === 'project' ? store.snapshot.projects.find(p => p.id === node.id) : undefined;
   const sessionOf = (node?: Node) => (node?.kind === 'session' ? sessions.findSession(node.id) : undefined);
@@ -334,6 +335,16 @@ export function registerCommands(store: Store, sessions: Sessions): vscode.Dispo
           await sessions.kill(session);
         }
       }),
+    ),
+
+    vscode.commands.registerCommand(
+      'paddock.openBrowser',
+      guarded(() => picker.open()),
+    ),
+
+    vscode.commands.registerCommand(
+      'paddock.pickElement',
+      guarded(() => picker.togglePick()),
     ),
 
     vscode.commands.registerCommand('paddock.moveToGroup', async (node?: Node, selected?: Node[]) => {

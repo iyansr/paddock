@@ -16,7 +16,7 @@ flowchart LR
     picker["Picker controller<br/>launch, capture, send to agent"]
   end
   herdr["herdr server (session: paddock)<br/>a workspace per project or worktree<br/>a tab and pane per agent<br/>detects working, blocked, done, idle<br/>keeps running when VS Code reloads"]
-  chromium["Chromium (Playwright)<br/>per-project profile, pick over CDP"]
+  browser["VS Code integrated browser<br/>browser API proposal<br/>Paddock's picker in each page"]
   picks[".paddock/picks<br/>.md + .png per pick"]
 
   manager -->|opens| terminals
@@ -24,7 +24,7 @@ flowchart LR
   terminals <-->|control stream| herdr
   herdr -->|"agent list (status)"| sidebar
   picker -->|pane send-text| herdr
-  picker -->|CDP| chromium
+  picker <-->|CDP via startCDPSession| browser
   picker -->|writes .md + .png| picks
 
   classDef main fill:#e8f0fc,stroke:#2f6fd6,stroke-width:2px,color:#1f1f1f
@@ -42,7 +42,7 @@ Everything that must survive a project switch lives in herdr: the agents, their 
 | Extension | TypeScript, VS Code extension API, bundled with esbuild | Standard, fast builds |
 | Agent runtime | herdr 0.9.3 or later, called through its CLI with `child_process.execFile` (JSON output) | Keeps agents alive, detects their state, manages worktrees |
 | Terminal | VS Code `Pseudoterminal` fed by `herdr terminal session control` | Native scrolling and shortcuts, no prefix keys |
-| Browser | `playwright-core` over the Chrome DevTools Protocol (CDP), installed Chrome first | Inspect overlay, HTML, styles and screenshots out of the box |
+| Browser | VS Code's integrated browser through the `browser` API proposal, driven over the Chrome DevTools Protocol (CDP) from `BrowserTab.startCDPSession()`, with an Orca-style picker injected into each page | A real browser inside VS Code; inspect overlay, HTML, styles and screenshots out of the box; no browser to ship |
 | Storage | `globalState` for projects and groups, `workspaceState` for terminal layout | No database needed |
 
 ### Data model
@@ -70,7 +70,7 @@ Build in this order; M1 alone already replaces Orca's project switching.
 | M1 Sessions | herdr check, a workspace per project, start agents, VS Code terminals streamed from herdr panes, switch project in the same window, reattach after reload | R3, R4, R7–R11 | 2 |
 | M2 Status | Badges from herdr's agent detection, waiting counts, notifications | R5, R6 | 0.5 |
 | M3 Worktrees | List, create and remove worktrees through herdr | R2 | 0.5 |
-| M4 Picker | Chromium window, pick mode, capture, comment, copy or send to the agent | R12–R17 | 3.5 |
+| M4 Picker | Integrated browser, pick mode, capture, comment, copy or send to the agent | R12–R18 | 3.5 |
 | M5 Polish | Settings, herdr version check and installer prompt, README, packaged `.vsix` | All | 1 |
 | **Total** |  |  | **8.5** |
 
@@ -114,16 +114,17 @@ Build in this order; M1 alone already replaces Orca's project switching.
 
 ### M4 Picker
 
-- **Launch.** `chromium.launchPersistentContext(<per-project profile>, { headless: false, channel: 'chrome' })`, falling back to bundled Chromium. The per-project profile keeps logins between runs.
-- **Toolbar.** `context.addInitScript` injects a small floating bar (Pick, comment box, Copy, Send) into every page. It talks to the extension through `context.exposeBinding`.
-- **Pick mode.** Open a CDP session and call `Overlay.setInspectMode` with `searchForNode` and `highlightConfig.showInfo: true`, which draws DevTools' tag-and-size label. The click arrives as `Overlay.inspectNodeRequested` with a `backendNodeId`.
-- **Capture from CDP.** `DOM.getOuterHTML` (trimmed to about 2 KB), `CSS.getComputedStyleForNode` filtered to non-default layout, spacing, typography and colour values, `DOM.getBoxModel`, and `Page.captureScreenshot` clipped to the box.
-- **Capture from the page.** One `Runtime.callFunctionOn` on the node returns the selector, role (ARIA or tag), text content, nearby text (sibling and parent text, at most three lines), the ancestor path and the full DOM path.
-- **React component.** The same call reads the node's `__reactFiber$…` key and walks `.return` to the nearest function or class component with a real name, skipping framework internals such as names starting with `__`. Production builds may show minified names.
-- **Format.** Build one plain-text block in the layout below and write it to `.paddock/picks/<timestamp>.md`, next to `<timestamp>.png`.
+- **Browser API.** Paddock uses VS Code's `browser` API proposal (`src/vscode.proposed.browser.d.ts`, `enabledApiProposals: ["browser"]`): `window.openBrowserTab`, `window.browserTabs`, `onDidOpenBrowserTab` / `onDidCloseBrowserTab`, `activeBrowserTab`, and `BrowserTab.startCDPSession()`. No debugger is involved: no debug toolbar, no Debug Console, no tab prompt. Stable VS Code allows a proposal only for an extension started with `--enable-proposed-api=undefined_publisher.paddock` (already in `.vscode/launch.json` and `.vscode-test.mjs`); an installed `.vsix` needs `"enable-proposed-api": ["undefined_publisher.paddock"]` in `argv.json` and a full restart. Without it, Open Browser explains this and offers to open `argv.json`. The Marketplace does not take extensions that use proposals, and the proposal can change between VS Code releases. Earlier versions used `editor-browser` debug sessions through js-debug's CDP proxy (a launched session, then one attached per pick); both showed the debug toolbar, and the launched one raced js-debug's `about:blank` → URL navigation.
+- **Open.** **Paddock: Open Browser** (the globe in the sidebar title) runs `window.openBrowserTab('', { viewColumn: Active })`: an empty tab in the current editor group, next to the other tabs, and I type the URL. There is no URL setting.
+- **CDP.** `startCDPSession()` is a browser-level session. `Target.setAutoAttach({ flatten: true })` attaches the page, and commands go to its `sessionId`. `src/picker/cdp.ts` is a small client over that message channel; there is no browser library. `src/picker/browser.ts` attaches to every integrated browser tab, open or opened later, and keeps one `PagePicker` (`src/picker/page-picker.ts`) per page.
+- **Picker in the page (Orca's grab mode).** `src/picker/page.ts` is injected with `Page.addScriptToEvaluateOnNewDocument` and once with `Runtime.evaluate`, inside a closed shadow root, and talks back through `Runtime.addBinding` (`Runtime.bindingCalled`). The page can call that binding too, so every message is validated (`src/picker/protocol.ts`). A Pick button sits in the bottom-right corner; **Paddock: Pick Element in Browser** (Cmd+Alt+P / Ctrl+Alt+P) toggles it in the active tab. Pick mode lays a full-page click catcher over the page: on mouse move it finds the element underneath with `elementFromPoint` (the catcher briefly stops taking pointer events) and draws its own white box and a dark label (`h2  role=…  "text"  524x144`). The click lands on the catcher, so the page never sees it. C copies the hovered element without the card; Esc cancels. Nothing here depends on DevTools' inspect overlay.
+- **Capture.** The page reads the element itself: selector (the shortest unique `tag.class.class` chain, with `:nth-of-type` where siblings match), role (ARIA or tag), text, nearby text (sibling and parent text, at most three lines), ancestor and full DOM paths, outer HTML, `getComputedStyle` for the properties `filterStyles` knows, and the box in document coordinates. It hides itself and waits briefly (a timer, since animation frames stop in a hidden tab) before reporting, so `Page.captureScreenshot` clipped to the box with `captureBeyondViewport` shows neither the highlight nor the card. A tab that is not on screen never answers the screenshot, so it times out after 4 s and the pick goes on without one. The extension trims the HTML to about 2 KB and keeps only non-default layout, spacing, typography and colour values (equal sides folded into `margin`, `padding` and so on).
+- **React component.** The page reads the node's `__reactFiber$…` key and walks `.return` to the nearest function or class component with a real name, skipping framework internals such as names starting with `__`. Production builds may show minified names.
+- **Card.** After a click, a card next to the element shows the selector, size, text and screenshot thumbnail, an instruction box, Cancel, Copy and Send to <session>. Enter sends, Cmd/Ctrl+Enter copies. Copy goes straight back to pick mode for the next element (as in Orca); Send ends it and focuses the agent's terminal. Failures (no session to send to) show on the page and keep the card open.
+- **Format.** Build one plain-text block in the layout below and write it to `.paddock/picks/<timestamp>.md`, next to `<timestamp>.png`. The timestamp is `YYYYMMDD-HHMMSS-<tag>`, with `-2`, `-3` added rather than overwriting. Copy writes the files too, since the text names the screenshot.
 - **Copy.** Put the block (plus the instruction, if any) on the clipboard with `vscode.env.clipboard.writeText`.
-- **Send.** Run `herdr pane send-text <paneId> "@<relPath> "`, which types without pressing Enter, and focus that session's VS Code terminal. The target is the last focused Paddock terminal, tracked with `window.onDidChangeActiveTerminal`.
-- **Git.** Append `.paddock/` to `.git/info/exclude` once.
+- **Send.** Run `herdr pane send-text <paneId> " @<relPath> "` (leading space as in PRD R16, so it does not run into text already typed), which types without pressing Enter, and focus that session's VS Code terminal. The path is relative to the agent's checkout. The target is the last focused Paddock terminal, tracked with `window.onDidChangeActiveTerminal`; before any is focused, an agent in this window's checkout (one with an open terminal first). The instruction is saved in the `.md`, not typed.
+- **Git.** Append `.paddock/` to the exclude file once, found with `git rev-parse --git-path info/exclude` so linked worktrees use the main repository's.
 
 Pick format, shown with the yapp.ink hero heading:
 
@@ -162,7 +163,8 @@ Instruction: make this heading smaller on mobile
 
 ### M5 Polish
 
-- Settings: `paddock.agents` (name and herdr kind presets), `paddock.herdrSession`, `paddock.terminalLocation`, `paddock.browser.defaultUrl`.
+- Settings: `paddock.agents` (name and herdr kind presets), `paddock.herdrSession`, `paddock.terminalLocation`.
+- Decide the publisher id before packaging: the extension id is `undefined_publisher.paddock` today, `argv.json` names it for the browser API, and changing it moves `globalState` (projects and groups) to a new key.
 - On activation, check herdr's version and `herdr api schema`, and offer `curl -fsSL https://herdr.dev/install.sh | sh` when herdr is missing.
 - README with a short GIF of switching and picking.
 
