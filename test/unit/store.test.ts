@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest';
+
 import {
-	addGroup, addProject, deleteGroup, emptyData, moveGroups, moveProjects, normalize, projectsOf,
-	removeProject, renameGroup, sortedGroups, Store, UNGROUPED_ID, type Memento, type PaddockData,
+	addGroup,
+	addProject,
+	deleteGroup,
+	emptyData,
+	moveGroups,
+	moveProjects,
+	normalize,
+	projectsOf,
+	removeProject,
+	renameGroup,
+	sortedGroups,
+	Store,
+	UNGROUPED_ID,
+	type Memento,
+	type PaddockData,
 } from '../../src/store';
 
 function build(): PaddockData {

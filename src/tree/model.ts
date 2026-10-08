@@ -1,6 +1,7 @@
 // What the sidebar shows, as plain data for the webview. Pure: no VS Code.
 
 import * as path from 'node:path';
+
 import { branchName, checkoutKey, type Checkout } from '../checkouts';
 import type { WorktreeInfo } from '../herdr/parse';
 import type { SessionState } from '../herdr/status';

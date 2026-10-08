@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+
 import * as vscode from 'vscode';
 
 // Open files per project. In a multi-root window VS Code keeps one editor state for the
@@ -66,30 +67,32 @@ export async function captureEditors(): Promise<{ snapshot: EditorSnapshot; tabs
 		groups.push({
 			viewColumn: column,
 			active: files.find(t => t.isActive)?.input.uri.toString(),
-			tabs: await Promise.all(files.map(async t => {
-				const uri = t.input.uri;
-				const doc = t.isDirty ? vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString()) : undefined;
-				let unsaved: Unsaved | undefined;
-				if (doc && doc.getText().length <= MAX_UNSAVED_CHARS) {
-					try {
-						unsaved = { text: doc.getText(), baseHash: await diskHash(uri) };
-					} catch {
-						// A file that cannot be read from disk (a new, never-saved path) is not stashed.
+			tabs: await Promise.all(
+				files.map(async t => {
+					const uri = t.input.uri;
+					const doc = t.isDirty ? vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString()) : undefined;
+					let unsaved: Unsaved | undefined;
+					if (doc && doc.getText().length <= MAX_UNSAVED_CHARS) {
+						try {
+							unsaved = { text: doc.getText(), baseHash: await diskHash(uri) };
+						} catch {
+							// A file that cannot be read from disk (a new, never-saved path) is not stashed.
+						}
 					}
-				}
-				const editor = vscode.window.visibleTextEditors.find(
-					e => e.viewColumn === column && e.document.uri.toString() === uri.toString(),
-				);
-				const sel = editor?.selection;
-				return {
-					uri: uri.toString(),
-					unsaved,
-					selection: sel && {
-						anchor: [sel.anchor.line, sel.anchor.character],
-						active: [sel.active.line, sel.active.character],
-					},
-				};
-			})),
+					const editor = vscode.window.visibleTextEditors.find(
+						e => e.viewColumn === column && e.document.uri.toString() === uri.toString(),
+					);
+					const sel = editor?.selection;
+					return {
+						uri: uri.toString(),
+						unsaved,
+						selection: sel && {
+							anchor: [sel.anchor.line, sel.anchor.character],
+							active: [sel.active.line, sel.active.character],
+						},
+					};
+				}),
+			),
 		});
 	}
 	return { snapshot: { groups, activeColumn }, tabs };
@@ -119,10 +122,7 @@ export async function closeEditors(tabs: vscode.Tab[]): Promise<boolean> {
 
 async function show(uri: string, viewColumn: number, tab: TabSnapshot | undefined, focus: boolean): Promise<vscode.TextEditor | undefined> {
 	const selection = tab?.selection
-		? new vscode.Selection(
-			new vscode.Position(...tab.selection.anchor),
-			new vscode.Position(...tab.selection.active),
-		)
+		? new vscode.Selection(new vscode.Position(...tab.selection.anchor), new vscode.Position(...tab.selection.active))
 		: undefined;
 	try {
 		return await vscode.window.showTextDocument(vscode.Uri.parse(uri), { viewColumn, preview: false, preserveFocus: !focus, selection });
@@ -170,12 +170,22 @@ export async function restoreEditors(snapshot: EditorSnapshot | undefined): Prom
 		}
 		// Opening in order fixes tab order; now bring the previously active tab back to the front.
 		if (group.active) {
-			await show(group.active, group.viewColumn, group.tabs.find(t => t.uri === group.active), false);
+			await show(
+				group.active,
+				group.viewColumn,
+				group.tabs.find(t => t.uri === group.active),
+				false,
+			);
 		}
 	}
 	const focused = groups.find(g => g.viewColumn === snapshot.activeColumn);
 	if (focused?.active) {
-		await show(focused.active, focused.viewColumn, focused.tabs.find(t => t.uri === focused.active), true);
+		await show(
+			focused.active,
+			focused.viewColumn,
+			focused.tabs.find(t => t.uri === focused.active),
+			true,
+		);
 	}
 	if (conflicts.length) {
 		void vscode.window.showWarningMessage(

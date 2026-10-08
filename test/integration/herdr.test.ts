@@ -3,7 +3,9 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
 import { Herdr } from '../../src/herdr/cli';
 import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/frames';
 import { HerdrError, isSupportedVersion } from '../../src/herdr/parse';

@@ -25,14 +25,15 @@ pnpm install
 pnpm run watch        # rebuild on change; then press F5 in VS Code to open the Extension Development Host
 pnpm run compile      # one-off build
 pnpm run check-types  # tsc --noEmit
-pnpm run lint
+pnpm run lint         # oxlint (.oxlintrc.json)
+pnpm run format       # oxfmt (.oxfmtrc.json): sorts imports, single quotes in JS/TS, double in JSX
 pnpm run test:unit    # Vitest, no VS Code needed
 pnpm run test:herdr   # Vitest against a real herdr server on a throwaway session
 pnpm test             # integration tests with @vscode/test-electron
 pnpm dlx @vscode/vsce package   # build the .vsix
 ```
 
-Run `check-types`, `lint` and `test:unit` before saying a task is done.
+Run `format`, `check-types`, `lint` and `test:unit` before saying a task is done.
 
 ## Layout
 

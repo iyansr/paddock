@@ -1,11 +1,28 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
+
 import * as vscode from 'vscode';
+
 import {
-	checkoutAt, checkoutKey, checkoutOf, checkoutName, checkoutPath, samePath, WORKTREES_KEY,
-	type Checkout, type Worktrees,
+	checkoutAt,
+	checkoutKey,
+	checkoutOf,
+	checkoutName,
+	checkoutPath,
+	samePath,
+	WORKTREES_KEY,
+	type Checkout,
+	type Worktrees,
 } from './checkouts';
-import { captureEditors, closeEditors, EDITORS_KEY, restoreEditors, revertStashed, type EditorSnapshot, type EditorSnapshots } from './editors';
+import {
+	captureEditors,
+	closeEditors,
+	EDITORS_KEY,
+	restoreEditors,
+	revertStashed,
+	type EditorSnapshot,
+	type EditorSnapshots,
+} from './editors';
 import { Herdr } from './herdr/cli';
 import { displayName, nextAgentName } from './herdr/names';
 import { HerdrError, type AgentInfo, type PaneInfo, type WorktreeInfo } from './herdr/parse';
@@ -279,14 +296,16 @@ export class Sessions {
 			return;
 		}
 		const { projects } = this.store.snapshot;
-		const lists = await Promise.all(projects.map(async p => {
-			try {
-				return [p.id, await this.herdr.worktreeList(p.path)] as const;
-			} catch (e) {
-				// Not a git repository: no worktrees. Anything else keeps the last known list.
-				return [p.id, e instanceof HerdrError && e.code === 'not_git_worktree' ? [] : this.worktreesOf(p)] as const;
-			}
-		}));
+		const lists = await Promise.all(
+			projects.map(async p => {
+				try {
+					return [p.id, await this.herdr.worktreeList(p.path)] as const;
+				} catch (e) {
+					// Not a git repository: no worktrees. Anything else keeps the last known list.
+					return [p.id, e instanceof HerdrError && e.code === 'not_git_worktree' ? [] : this.worktreesOf(p)] as const;
+				}
+			}),
+		);
 		const next: Worktrees = Object.fromEntries(lists);
 		if (JSON.stringify(next) !== JSON.stringify(this.worktrees)) {
 			this.worktrees = next;
@@ -363,7 +382,10 @@ export class Sessions {
 				if (status.find(s => s.kind === kind)?.state === 'current') {
 					continue;
 				}
-				await this.context.globalState.update(INTEGRATION_ASKED_KEY, [...(this.context.globalState.get<string[]>(INTEGRATION_ASKED_KEY) ?? []), kind]);
+				await this.context.globalState.update(INTEGRATION_ASKED_KEY, [
+					...(this.context.globalState.get<string[]>(INTEGRATION_ASKED_KEY) ?? []),
+					kind,
+				]);
 				const choice = await vscode.window.showInformationMessage(
 					`Install herdr's ${kind} integration? It adds a hook to your ${kind} config so Paddock shows exact session status instead of guessing from the screen.`,
 					'Install',
@@ -609,7 +631,6 @@ export class Sessions {
 	 */
 	private async swapTo(c: Checkout): Promise<void> {
 		const target = { uri: vscode.Uri.file(checkoutPath(c)), name: checkoutName(c) };
-		const folders = vscode.workspace.workspaceFolders ?? [];
 		await mkdir(this.placeholder, { recursive: true });
 
 		if (!this.isSwapWindow()) {
@@ -617,7 +638,12 @@ export class Sessions {
 			// to save it on every close). Opening it reloads the window once; the pending-open
 			// request stored by switchTo() finishes the job afterwards.
 			const file = vscode.Uri.file(path.join(this.context.globalStorageUri.fsPath, 'Paddock.code-workspace'));
-			const content = { folders: [{ name: 'Paddock', path: this.placeholder }, { name: target.name, path: target.uri.fsPath }] };
+			const content = {
+				folders: [
+					{ name: 'Paddock', path: this.placeholder },
+					{ name: target.name, path: target.uri.fsPath },
+				],
+			};
 			await writeFile(file.fsPath, JSON.stringify(content, null, '\t') + '\n');
 			this.markLeaving();
 			try {

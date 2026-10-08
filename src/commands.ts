@@ -1,5 +1,7 @@
 import * as path from 'node:path';
+
 import * as vscode from 'vscode';
+
 import { checkoutName, type Checkout } from './checkouts';
 import { AGENT_NAME } from './herdr/names';
 import type { PaneInfo } from './herdr/parse';
@@ -26,8 +28,7 @@ function guarded<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...ar
 }
 
 export function registerCommands(store: Store, sessions: Sessions): vscode.Disposable[] {
-	const projectOf = (node?: Node) =>
-		node?.kind === 'project' ? store.snapshot.projects.find(p => p.id === node.id) : undefined;
+	const projectOf = (node?: Node) => (node?.kind === 'project' ? store.snapshot.projects.find(p => p.id === node.id) : undefined);
 	const sessionOf = (node?: Node) => (node?.kind === 'session' ? sessions.findSession(node.id) : undefined);
 
 	/** The checkout a worktree row, project row or session stands for. */
@@ -163,119 +164,156 @@ export function registerCommands(store: Store, sessions: Sessions): vscode.Dispo
 			await store.update(d => deleteGroup(d, node.id));
 		}),
 
-		vscode.commands.registerCommand('paddock.openProject', guarded(async (node?: Node) => {
-			const project = projectOf(node);
-			if (project && sessions.currentProject()?.id !== project.id) {
-				await sessions.switchTo({ project });
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.openProject',
+			guarded(async (node?: Node) => {
+				const project = projectOf(node);
+				if (project && sessions.currentProject()?.id !== project.id) {
+					await sessions.switchTo({ project });
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.openWorktree', guarded(async (node?: Node) => {
-			const checkout = node?.kind === 'worktree' ? checkoutOfNode(node) : undefined;
-			if (checkout && !sessions.isCurrent(checkout)) {
-				await sessions.switchTo(checkout);
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.openWorktree',
+			guarded(async (node?: Node) => {
+				const checkout = node?.kind === 'worktree' ? checkoutOfNode(node) : undefined;
+				if (checkout && !sessions.isCurrent(checkout)) {
+					await sessions.switchTo(checkout);
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.newSession', guarded(async (node?: Node) => {
-			const checkout = await pickCheckout(node);
-			if (checkout) {
-				await startSession(checkout);
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.newSession',
+			guarded(async (node?: Node) => {
+				const checkout = await pickCheckout(node);
+				if (checkout) {
+					await startSession(checkout);
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.newWorktree', guarded(async (node?: Node) => {
-			const project = await pickProject(node, 'Project for the new worktree');
-			if (!project) {
-				return;
-			}
-			const branch = (await vscode.window.showInputBox({
-				title: `New worktree of ${project.name}`,
-				prompt: 'Branch name. An existing branch is checked out; any other name creates a new branch.',
-				placeHolder: 'feat/pricing-page',
-				validateInput: v => (v.trim() && !/\s/.test(v.trim()) ? undefined : 'Enter a branch name without spaces'),
-			}))?.trim();
-			if (!branch) {
-				return;
-			}
-			const { checkout, rootPane } = await vscode.window.withProgress(
-				{ location: vscode.ProgressLocation.Notification, title: `Creating worktree ${branch}…` },
-				() => sessions.createWorktree(project, branch),
-			);
-			// herdr opens the worktree with a shell; the first session takes over that pane.
-			await startSession(checkout, rootPane);
-		})),
+		vscode.commands.registerCommand(
+			'paddock.newWorktree',
+			guarded(async (node?: Node) => {
+				const project = await pickProject(node, 'Project for the new worktree');
+				if (!project) {
+					return;
+				}
+				const branch = (
+					await vscode.window.showInputBox({
+						title: `New worktree of ${project.name}`,
+						prompt: 'Branch name. An existing branch is checked out; any other name creates a new branch.',
+						placeHolder: 'feat/pricing-page',
+						validateInput: v => (v.trim() && !/\s/.test(v.trim()) ? undefined : 'Enter a branch name without spaces'),
+					})
+				)?.trim();
+				if (!branch) {
+					return;
+				}
+				const { checkout, rootPane } = await vscode.window.withProgress(
+					{ location: vscode.ProgressLocation.Notification, title: `Creating worktree ${branch}…` },
+					() => sessions.createWorktree(project, branch),
+				);
+				// herdr opens the worktree with a shell; the first session takes over that pane.
+				await startSession(checkout, rootPane);
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.removeWorktree', guarded(async (node?: Node) => {
-			const checkout = node?.kind === 'worktree' ? checkoutOfNode(node) : undefined;
-			if (!checkout?.worktree) {
-				return;
-			}
-			const running = sessions.sessionsIn(checkout).length;
-			const stops = running ? ` and stops its ${running} session${running > 1 ? 's' : ''}` : '';
-			const switches = sessions.isCurrent(checkout) ? ` This window switches to ${checkout.project.name} first.` : '';
-			const answer = await vscode.window.showWarningMessage(
-				`Remove worktree ${checkoutName(checkout)}?`,
-				{ modal: true, detail: `Deletes the checkout at ${checkout.worktree.path}${stops}. The branch is kept.${switches}` },
-				'Remove',
-			);
-			if (answer === 'Remove') {
-				await sessions.removeWorktree(checkout);
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.removeWorktree',
+			guarded(async (node?: Node) => {
+				const checkout = node?.kind === 'worktree' ? checkoutOfNode(node) : undefined;
+				if (!checkout?.worktree) {
+					return;
+				}
+				const running = sessions.sessionsIn(checkout).length;
+				const stops = running ? ` and stops its ${running} session${running > 1 ? 's' : ''}` : '';
+				const switches = sessions.isCurrent(checkout) ? ` This window switches to ${checkout.project.name} first.` : '';
+				const answer = await vscode.window.showWarningMessage(
+					`Remove worktree ${checkoutName(checkout)}?`,
+					{ modal: true, detail: `Deletes the checkout at ${checkout.worktree.path}${stops}. The branch is kept.${switches}` },
+					'Remove',
+				);
+				if (answer === 'Remove') {
+					await sessions.removeWorktree(checkout);
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.openSession', guarded(async (node?: Node) => {
-			const session = sessionOf(node);
-			if (session) {
-				await sessions.openSession(session);
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.openSession',
+			guarded(async (node?: Node) => {
+				const session = sessionOf(node);
+				if (session) {
+					await sessions.openSession(session);
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.renameSession', guarded(async (node?: Node) => {
-			const session = sessionOf(node);
-			if (!session) {
-				return;
-			}
-			const name = await vscode.window.showInputBox({
-				prompt: 'Session name',
-				value: session.name,
-				validateInput: v => (session.kind && !AGENT_NAME.test(v) ? 'Use a-z, 0-9, - and _, starting with a letter (max 32)' : v.trim() ? undefined : 'Name required'),
-			});
-			if (name && name !== session.name) {
-				await sessions.rename(session, name.trim());
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.renameSession',
+			guarded(async (node?: Node) => {
+				const session = sessionOf(node);
+				if (!session) {
+					return;
+				}
+				const name = await vscode.window.showInputBox({
+					prompt: 'Session name',
+					value: session.name,
+					validateInput: v =>
+						session.kind && !AGENT_NAME.test(v)
+							? 'Use a-z, 0-9, - and _, starting with a letter (max 32)'
+							: v.trim()
+								? undefined
+								: 'Name required',
+				});
+				if (name && name !== session.name) {
+					await sessions.rename(session, name.trim());
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.restartSession', guarded(async (node?: Node) => {
-			const session = sessionOf(node);
-			const checkout = checkoutOfNode(node);
-			if (!session || !checkout) {
-				return;
-			}
-			const answer = await vscode.window.showWarningMessage(
-				`Restart "${session.name}"?`,
-				{ modal: true, detail: 'The agent process is stopped and a fresh one starts in the same project. Its conversation is not carried over.' },
-				'Restart',
-			);
-			if (answer === 'Restart') {
-				await sessions.restart(session, checkout);
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.restartSession',
+			guarded(async (node?: Node) => {
+				const session = sessionOf(node);
+				const checkout = checkoutOfNode(node);
+				if (!session || !checkout) {
+					return;
+				}
+				const answer = await vscode.window.showWarningMessage(
+					`Restart "${session.name}"?`,
+					{
+						modal: true,
+						detail: 'The agent process is stopped and a fresh one starts in the same project. Its conversation is not carried over.',
+					},
+					'Restart',
+				);
+				if (answer === 'Restart') {
+					await sessions.restart(session, checkout);
+				}
+			}),
+		),
 
-		vscode.commands.registerCommand('paddock.killSession', guarded(async (node?: Node) => {
-			const session = sessionOf(node);
-			if (!session) {
-				return;
-			}
-			const answer = await vscode.window.showWarningMessage(
-				`Kill "${session.name}"?`,
-				{ modal: true, detail: 'This stops the agent and closes its herdr pane. Closing just the terminal tab does not.' },
-				'Kill',
-			);
-			if (answer === 'Kill') {
-				await sessions.kill(session);
-			}
-		})),
+		vscode.commands.registerCommand(
+			'paddock.killSession',
+			guarded(async (node?: Node) => {
+				const session = sessionOf(node);
+				if (!session) {
+					return;
+				}
+				const answer = await vscode.window.showWarningMessage(
+					`Kill "${session.name}"?`,
+					{ modal: true, detail: 'This stops the agent and closes its herdr pane. Closing just the terminal tab does not.' },
+					'Kill',
+				);
+				if (answer === 'Kill') {
+					await sessions.kill(session);
+				}
+			}),
+		),
 
 		vscode.commands.registerCommand('paddock.moveToGroup', async (node?: Node, selected?: Node[]) => {
 			const ids = targets(node, selected, 'project').map(n => n.id);
@@ -297,4 +335,3 @@ export function registerCommands(store: Store, sessions: Sessions): vscode.Dispo
 		}),
 	];
 }
-

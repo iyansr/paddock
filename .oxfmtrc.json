@@ -1,0 +1,10 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"printWidth": 140,
+	"singleQuote": true,
+	"jsxSingleQuote": false,
+	"sortImports": true,
+	"arrowParens": "avoid",
+	"ignorePatterns": ["dist", "out", ".vscode-test", "herdr-api.schema.json", "pnpm-lock.yaml", "docs"]
+}

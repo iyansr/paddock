@@ -1,6 +1,8 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
+
 import * as vscode from 'vscode';
+
 import type { Herdr } from './cli';
 import { encodeCommand, LineSplitter, parseStreamLine, type ControlCommand } from './frames';
 

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import { registerCommands } from './commands';
 import { Herdr, type HerdrConfig } from './herdr/cli';
 import { isSupportedVersion, MIN_HERDR_VERSION } from './herdr/parse';

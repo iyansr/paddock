@@ -1,18 +1,35 @@
 import { describe, expect, it } from 'vitest';
+
 import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/frames';
 import { AGENT_NAME, displayName, nextAgentName } from '../../src/herdr/names';
 import {
-	HerdrError, isSupportedVersion, parseAgentList, parseCreated, parseEnvelope, parsePaneList,
-	parseServerRunning, parseWorkspaceList, parseWorktreeList, parseWorktreeOpened,
+	HerdrError,
+	isSupportedVersion,
+	parseAgentList,
+	parseCreated,
+	parseEnvelope,
+	parsePaneList,
+	parseServerRunning,
+	parseWorkspaceList,
+	parseWorktreeList,
+	parseWorktreeOpened,
 } from '../../src/herdr/parse';
 import { mapStatus, newlyWaiting, parseIntegrationStatus, waitingByWorkspace, type StatusEntry } from '../../src/herdr/status';
 import { remove, restorable, upsert, type OpenSession } from '../../src/layout';
 
 // Captured from herdr 0.9.3.
 const PANE = {
-	agent_status: 'unknown', cwd: '/private/tmp', focused: true, foreground_cwd: '/private/tmp',
-	pane_id: 'w1:p1', revision: 5, tab_id: 'w1:t1', terminal_id: 'term_65d52baced8bc1',
-	terminal_title: 'iyansr@host:/tmp', terminal_title_stripped: 'iyansr@host:/tmp', workspace_id: 'w1',
+	agent_status: 'unknown',
+	cwd: '/private/tmp',
+	focused: true,
+	foreground_cwd: '/private/tmp',
+	pane_id: 'w1:p1',
+	revision: 5,
+	tab_id: 'w1:t1',
+	terminal_id: 'term_65d52baced8bc1',
+	terminal_title: 'iyansr@host:/tmp',
+	terminal_title_stripped: 'iyansr@host:/tmp',
+	workspace_id: 'w1',
 };
 
 describe('parseEnvelope', () => {
@@ -22,11 +39,7 @@ describe('parseEnvelope', () => {
 	it('throws herdr errors with their code', () => {
 		const run = () => parseEnvelope('{"error":{"code":"agent_not_ready","message":"blocked"},"id":"x"}');
 		expect(run).toThrow(HerdrError);
-		try {
-			run();
-		} catch (e) {
-			expect((e as HerdrError).code).toBe('agent_not_ready');
-		}
+		expect(run).toThrow(expect.objectContaining({ code: 'agent_not_ready' }));
 	});
 	it('rejects non-JSON', () => {
 		expect(() => parseEnvelope('status: running')).toThrow(/did not return JSON/);
@@ -36,7 +49,13 @@ describe('parseEnvelope', () => {
 describe('parsers', () => {
 	it('parses panes', () => {
 		const [pane] = parsePaneList({ panes: [PANE] });
-		expect(pane).toMatchObject({ paneId: 'w1:p1', tabId: 'w1:t1', workspaceId: 'w1', terminalId: 'term_65d52baced8bc1', title: 'iyansr@host:/tmp' });
+		expect(pane).toMatchObject({
+			paneId: 'w1:p1',
+			tabId: 'w1:t1',
+			workspaceId: 'w1',
+			terminalId: 'term_65d52baced8bc1',
+			title: 'iyansr@host:/tmp',
+		});
 	});
 	it('rejects a pane without an id', () => {
 		expect(() => parsePaneList({ panes: [{ ...PANE, pane_id: undefined }] })).toThrow(/pane_id/);
@@ -53,7 +72,9 @@ describe('parsers', () => {
 		expect(agent.kind).toBe('claude');
 	});
 	it('parses workspaces', () => {
-		expect(parseWorkspaceList({ workspaces: [{ workspace_id: 'w1', label: 'scratch' }] })).toEqual([{ workspaceId: 'w1', label: 'scratch' }]);
+		expect(parseWorkspaceList({ workspaces: [{ workspace_id: 'w1', label: 'scratch' }] })).toEqual([
+			{ workspaceId: 'w1', label: 'scratch' },
+		]);
 	});
 	it('parses a created tab or workspace', () => {
 		expect(parseCreated({ root_pane: PANE }).rootPane.paneId).toBe('w1:p1');
@@ -62,12 +83,23 @@ describe('parsers', () => {
 
 // Captured from herdr 0.9.3 (`worktree list`, `worktree create`).
 const MAIN_WORKTREE = {
-	branch: 'main', is_bare: false, is_detached: false, is_linked_worktree: false, is_prunable: false,
-	label: 'repo', open_workspace_id: 'w1', path: '/tmp/repo',
+	branch: 'main',
+	is_bare: false,
+	is_detached: false,
+	is_linked_worktree: false,
+	is_prunable: false,
+	label: 'repo',
+	open_workspace_id: 'w1',
+	path: '/tmp/repo',
 };
 const LINKED_WORKTREE = {
-	branch: 'feat-a', is_bare: false, is_detached: false, is_linked_worktree: true, is_prunable: false,
-	label: 'repo', path: '/Users/me/.herdr/worktrees/repo/feat-a',
+	branch: 'feat-a',
+	is_bare: false,
+	is_detached: false,
+	is_linked_worktree: true,
+	is_prunable: false,
+	label: 'repo',
+	path: '/Users/me/.herdr/worktrees/repo/feat-a',
 };
 
 describe('worktrees', () => {
@@ -110,8 +142,13 @@ describe('worktrees', () => {
 });
 
 describe('versions and status', () => {
-	it.each([['herdr 0.9.3', true], ['herdr 0.10.0', true], ['herdr 1.0.0', true], ['herdr 0.9.2', false], ['nonsense', false]])(
-		'%s -> %s', (text, ok) => expect(isSupportedVersion(text)).toBe(ok));
+	it.each([
+		['herdr 0.9.3', true],
+		['herdr 0.10.0', true],
+		['herdr 1.0.0', true],
+		['herdr 0.9.2', false],
+		['nonsense', false],
+	])('%s -> %s', (text, ok) => expect(isSupportedVersion(text)).toBe(ok));
 	it('reads server status', () => {
 		expect(parseServerRunning('status: running\nversion: 0.9.3\n')).toBe(true);
 		expect(parseServerRunning('status: not running\n')).toBe(false);
@@ -147,7 +184,15 @@ describe('stream protocol', () => {
 		expect(s.push(':2}\n\n')).toEqual(['{"b":2}']);
 	});
 	it('decodes a frame', () => {
-		const line = JSON.stringify({ type: 'terminal.frame', bytes: Buffer.from('\x1b[2Jhi').toString('base64'), full: true, seq: 1, width: 80, height: 24, encoding: 'ansi' });
+		const line = JSON.stringify({
+			type: 'terminal.frame',
+			bytes: Buffer.from('\x1b[2Jhi').toString('base64'),
+			full: true,
+			seq: 1,
+			width: 80,
+			height: 24,
+			encoding: 'ansi',
+		});
 		const rec = parseStreamLine(line);
 		expect(rec).toMatchObject({ type: 'frame', full: true, seq: 1, width: 80, height: 24 });
 		expect(rec?.type === 'frame' && rec.bytes.toString()).toBe('\x1b[2Jhi');
@@ -173,7 +218,15 @@ describe('layout', () => {
 		expect(remove([a, b], 'w1:p1')).toEqual([b]);
 	});
 	it('restores only panes that still hold the same terminal', () => {
-		expect(restorable([a, b], [{ paneId: 'w1:p1', terminalId: 't1' }, { paneId: 'w1:p2', terminalId: 'other' }])).toEqual([a]);
+		expect(
+			restorable(
+				[a, b],
+				[
+					{ paneId: 'w1:p1', terminalId: 't1' },
+					{ paneId: 'w1:p2', terminalId: 'other' },
+				],
+			),
+		).toEqual([a]);
 	});
 });
 
@@ -192,7 +245,10 @@ describe('status', () => {
 		expect(counts).toEqual(new Map([['w1', 2]]));
 	});
 	it('reports only sessions that just started waiting', () => {
-		const previous = new Map<string, 'running' | 'waiting' | 'done'>([['w1:p1', 'waiting'], ['w1:p2', 'running']]);
+		const previous = new Map<string, 'running' | 'waiting' | 'done'>([
+			['w1:p1', 'waiting'],
+			['w1:p2', 'running'],
+		]);
 		const now = [e('w1:p1', 'w1', 'waiting'), e('w1:p2', 'w1', 'waiting'), e('w1:p3', 'w1', 'waiting'), e('w1:p4', 'w1', 'running')];
 		expect(newlyWaiting(previous, now).map(x => x.paneId)).toEqual(['w1:p2', 'w1:p3']);
 	});

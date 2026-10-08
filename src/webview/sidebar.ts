@@ -36,14 +36,24 @@ const svg = (body: string, cls = 'ico') =>
 
 const ICON = {
 	chevron: svg('<path d="M6 4l4 4-4 4"/>', 'ico chev'),
-	group: svg('<rect x="2" y="2.5" width="5" height="4" rx="1"/><path d="M4.5 6.5v6.5h4M4.5 9.5h4"/><rect x="9" y="7.5" width="5" height="3.5" rx="1"/><rect x="9" y="11.5" width="5" height="3" rx="1"/>'),
+	group: svg(
+		'<rect x="2" y="2.5" width="5" height="4" rx="1"/><path d="M4.5 6.5v6.5h4M4.5 9.5h4"/><rect x="9" y="7.5" width="5" height="3.5" rx="1"/><rect x="9" y="11.5" width="5" height="3" rx="1"/>',
+	),
 	folder: svg('<path d="M1.8 4.2c0-.7.5-1.2 1.2-1.2h3l1.5 1.7H13c.7 0 1.2.5 1.2 1.2v6.4c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2z"/>'),
-	folderOpen: svg('<path d="M1.8 12V4.2c0-.7.5-1.2 1.2-1.2h3l1.5 1.7H12c.7 0 1.2.5 1.2 1.2V7"/><path d="M1.8 12.3l1.9-4.6c.2-.4.6-.7 1-.7h9.6c.5 0 .8.5.6 1l-1.8 4.2c-.2.4-.6.6-1 .6H2.3"/>'),
+	folderOpen: svg(
+		'<path d="M1.8 12V4.2c0-.7.5-1.2 1.2-1.2h3l1.5 1.7H12c.7 0 1.2.5 1.2 1.2V7"/><path d="M1.8 12.3l1.9-4.6c.2-.4.6-.7 1-.7h9.6c.5 0 .8.5.6 1l-1.8 4.2c-.2.4-.6.6-1 .6H2.3"/>',
+	),
 	plus: svg('<path d="M8 3v10M3 8h10"/>'),
-	newGroup: svg('<path d="M1.8 12V4.2c0-.7.5-1.2 1.2-1.2h3l1.5 1.7H13c.7 0 1.2.5 1.2 1.2v2"/><path d="M1.8 12c0 .7.5 1.2 1.2 1.2h5M12 9.5v5M9.5 12h5"/>'),
-	branch: svg('<circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 3-4.5 2.5-7 4"/>'),
+	newGroup: svg(
+		'<path d="M1.8 12V4.2c0-.7.5-1.2 1.2-1.2h3l1.5 1.7H13c.7 0 1.2.5 1.2 1.2v2"/><path d="M1.8 12c0 .7.5 1.2 1.2 1.2h5M12 9.5v5M9.5 12h5"/>',
+	),
+	branch: svg(
+		'<circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 3-4.5 2.5-7 4"/>',
+	),
 	trash: svg('<path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 9h6.6l.7-9"/>'),
-	more: svg('<circle cx="3.5" cy="8" r=".6" fill="currentColor"/><circle cx="8" cy="8" r=".6" fill="currentColor"/><circle cx="12.5" cy="8" r=".6" fill="currentColor"/>'),
+	more: svg(
+		'<circle cx="3.5" cy="8" r=".6" fill="currentColor"/><circle cx="8" cy="8" r=".6" fill="currentColor"/><circle cx="12.5" cy="8" r=".6" fill="currentColor"/>',
+	),
 	terminal: svg('<rect x="1.8" y="2.5" width="12.4" height="11" rx="1.5"/><path d="M4.5 6l2 2-2 2M8 10.5h3.5"/>'),
 	check: svg('<circle cx="8" cy="8" r="6"/><path d="M5.5 8.2l1.7 1.7 3.3-3.6"/>', 'ico st done'),
 	waiting: svg('<path d="M4.5 11V7.5a3.5 3.5 0 0 1 7 0V11l1 1.2h-9z"/><path d="M6.8 14h2.4"/>', 'ico st waiting'),
@@ -164,8 +174,15 @@ function renderProject(p: ProjectRow, level: number, parent: string | undefined,
 	const open = hasChildren && isExpanded(key, p.current);
 	const badge = p.waiting ? pill('waiting', `${p.waiting} waiting`) : p.done ? pill('done', `${p.done} done`) : '';
 	let h = `<div ${rowAttrs({
-		key, node: p.node, section: 'project', level, parent, cls: `project${p.current ? ' current' : ''}`,
-		expanded: hasChildren ? open : undefined, title: p.path, label: p.name,
+		key,
+		node: p.node,
+		section: 'project',
+		level,
+		parent,
+		cls: `project${p.current ? ' current' : ''}`,
+		expanded: hasChildren ? open : undefined,
+		title: p.path,
+		label: p.name,
 		extra: `draggable="true" data-drag="project" data-group="${esc(p.groupId)}" data-next="${esc(nextId ?? '')}"`,
 	})}>
 		<span class="twist">${hasChildren ? ICON.chevron : ''}</span>${p.current ? ICON.folderOpen : ICON.folder}<span class="name">${esc(p.name)}</span>${badge}
@@ -185,7 +202,9 @@ function renderProject(p: ProjectRow, level: number, parent: string | undefined,
 function renderCheckout(c: CheckoutRow, level: number, parent: string): string {
 	const key = nodeKey(c.node);
 	const section = c.primary ? 'mainWorktree' : 'worktree';
-	const actions = action('paddock.newSession', 'New session', ICON.plus) + (c.primary ? '' : action('paddock.removeWorktree', 'Remove worktree', ICON.trash));
+	const actions =
+		action('paddock.newSession', 'New session', ICON.plus) +
+		(c.primary ? '' : action('paddock.removeWorktree', 'Remove worktree', ICON.trash));
 	let h = `<div class="card${c.current ? ' current' : ''}" data-level="${level}">`;
 	h += `<div ${rowAttrs({ key, node: c.node, section, level, parent, cls: `checkout${c.current ? ' current' : ''}`, title: c.shownPath, label: `${c.label}${c.primary ? ', primary' : ''}, ${c.branch}, ${STATE_WORD[c.state]}` })}>
 		<span class="dot ${c.state}" title="${STATE_WORD[c.state]}"></span>
@@ -207,7 +226,10 @@ function renderSessions(sessions: SessionRow[], key: string, level: number, pare
 	}
 	const open = isExpanded(key, current);
 	const order: RowState[] = ['waiting', 'running', 'done'];
-	const counts = order.map(s => [s, sessions.filter(x => x.state === s).length] as const).filter(([, n]) => n).map(([s, n]) => `${n} ${s}`);
+	const counts = order
+		.map(s => [s, sessions.filter(x => x.state === s).length] as const)
+		.filter(([, n]) => n)
+		.map(([s, n]) => `${n} ${s}`);
 	const shells = sessions.filter(s => !s.kind).length;
 	const summary = [...counts, ...(shells ? [`${shells} shell${shells > 1 ? 's' : ''}`] : [])].join(', ');
 	const noun = `${sessions.length} ${sessions.every(s => !s.kind) ? 'shells' : 'agents'}`;

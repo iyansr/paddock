@@ -1,6 +1,7 @@
 // A checkout is a project's main folder or one of its linked git worktrees. Pure; no VS Code.
 
 import * as path from 'node:path';
+
 import type { WorktreeInfo } from './herdr/parse';
 import type { Project } from './store';
 

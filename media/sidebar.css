@@ -33,11 +33,21 @@ body {
 }
 
 /* The webview's CSP forbids inline styles, so each nesting level is a rule. */
-[data-level="1"] { --level: 1; }
-[data-level="2"] { --level: 2; }
-[data-level="3"] { --level: 3; }
-[data-level="4"] { --level: 4; }
-[data-level="5"] { --level: 5; }
+[data-level='1'] {
+	--level: 1;
+}
+[data-level='2'] {
+	--level: 2;
+}
+[data-level='3'] {
+	--level: 3;
+}
+[data-level='4'] {
+	--level: 4;
+}
+[data-level='5'] {
+	--level: 5;
+}
 
 .toolbar {
 	position: sticky;
@@ -138,7 +148,7 @@ body {
 	transition: transform 0.1s ease;
 }
 
-.row[aria-expanded="true"] > .twist .chev {
+.row[aria-expanded='true'] > .twist .chev {
 	transform: rotate(90deg);
 }
 
@@ -172,7 +182,7 @@ body {
 }
 
 .children::before {
-	content: "";
+	content: '';
 	position: absolute;
 	top: 0;
 	bottom: 0;
@@ -182,7 +192,7 @@ body {
 }
 
 .children + .project,
-.group[aria-expanded="false"] + .project {
+.group[aria-expanded='false'] + .project {
 	margin-top: 6px;
 }
 
@@ -418,7 +428,7 @@ body {
 }
 
 /* The header's chevron points down when open, right when closed. */
-.row.strip[aria-expanded="true"] > .twist .chev {
+.row.strip[aria-expanded='true'] > .twist .chev {
 	transform: rotate(90deg);
 }
 
@@ -487,7 +497,7 @@ body {
 
 .drop-before::before,
 .drop-after::after {
-	content: "";
+	content: '';
 	position: absolute;
 	left: 6px;
 	right: 6px;

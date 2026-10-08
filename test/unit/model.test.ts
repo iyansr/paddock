@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { checkoutKey, type Checkout } from '../../src/checkouts';
 import type { WorktreeInfo } from '../../src/herdr/parse';
 import type { SessionState } from '../../src/herdr/status';
@@ -17,7 +18,13 @@ const data: PaddockData = {
 };
 const main: WorktreeInfo = { path: '/home/me/code/app', branch: 'main', linked: false };
 const feat: WorktreeInfo = { path: '/wt/app/feat', branch: 'feat/x', linked: true };
-const session = (paneId: string, status: SessionState, kind = 'claude'): SessionSource => ({ paneId, name: paneId, kind, status, open: false });
+const session = (paneId: string, status: SessionState, kind = 'claude'): SessionSource => ({
+	paneId,
+	name: paneId,
+	kind,
+	status,
+	open: false,
+});
 
 const sessions: Record<string, SessionSource[]> = {
 	app: [session('p1', 'done')],
@@ -95,10 +102,24 @@ describe('rollup and paths', () => {
 describe('webview messages', () => {
 	it('accepts well-formed messages', () => {
 		expect(parseMessage({ type: 'ready' })).toEqual({ type: 'ready' });
-		expect(parseMessage({ type: 'command', command: 'paddock.openSession', node: { kind: 'session', id: 'p1', projectId: 'app', extra: 1 } }))
-			.toEqual({ type: 'command', command: 'paddock.openSession', node: { kind: 'session', id: 'p1', projectId: 'app', worktree: undefined } });
-		expect(parseMessage({ type: 'moveProjects', ids: ['a'], groupId: 'g1' })).toEqual({ type: 'moveProjects', ids: ['a'], groupId: 'g1', before: undefined });
-		expect(parseMessage({ type: 'collapse', groupId: 'g1', collapsed: true })).toEqual({ type: 'collapse', groupId: 'g1', collapsed: true });
+		expect(
+			parseMessage({ type: 'command', command: 'paddock.openSession', node: { kind: 'session', id: 'p1', projectId: 'app', extra: 1 } }),
+		).toEqual({
+			type: 'command',
+			command: 'paddock.openSession',
+			node: { kind: 'session', id: 'p1', projectId: 'app', worktree: undefined },
+		});
+		expect(parseMessage({ type: 'moveProjects', ids: ['a'], groupId: 'g1' })).toEqual({
+			type: 'moveProjects',
+			ids: ['a'],
+			groupId: 'g1',
+			before: undefined,
+		});
+		expect(parseMessage({ type: 'collapse', groupId: 'g1', collapsed: true })).toEqual({
+			type: 'collapse',
+			groupId: 'g1',
+			collapsed: true,
+		});
 	});
 	it('drops anything else', () => {
 		expect(parseMessage(null)).toBeUndefined();

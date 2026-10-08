@@ -3,9 +3,20 @@ import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+
 import {
-	HerdrError, parseAgentList, parseCreated, parseEnvelope, parsePaneList, parseServerRunning,
-	parseWorkspaceList, parseWorktreeList, parseWorktreeOpened, type AgentInfo, type PaneInfo, type WorkspaceInfo,
+	HerdrError,
+	parseAgentList,
+	parseCreated,
+	parseEnvelope,
+	parsePaneList,
+	parseServerRunning,
+	parseWorkspaceList,
+	parseWorktreeList,
+	parseWorktreeOpened,
+	type AgentInfo,
+	type PaneInfo,
+	type WorkspaceInfo,
 	type WorktreeInfo,
 } from './parse';
 import { parseIntegrationStatus, type IntegrationStatus } from './status';
@@ -17,11 +28,7 @@ export interface HerdrConfig {
 	session: string;
 }
 
-const COMMON_LOCATIONS = [
-	path.join(os.homedir(), '.local', 'bin', 'herdr'),
-	'/opt/homebrew/bin/herdr',
-	'/usr/local/bin/herdr',
-];
+const COMMON_LOCATIONS = [path.join(os.homedir(), '.local', 'bin', 'herdr'), '/opt/homebrew/bin/herdr', '/usr/local/bin/herdr'];
 
 interface ExecFailure extends Error {
 	stdout?: string;
@@ -143,7 +150,10 @@ export class Herdr {
 	}
 
 	/** Opens a workspace on an existing checkout; herdr closes it again when its last pane closes. */
-	async worktreeOpen(repoPath: string, checkoutPath: string): Promise<{ worktree: WorktreeInfo; workspaceId: string; rootPane?: PaneInfo }> {
+	async worktreeOpen(
+		repoPath: string,
+		checkoutPath: string,
+	): Promise<{ worktree: WorktreeInfo; workspaceId: string; rootPane?: PaneInfo }> {
 		return parseWorktreeOpened(await this.call(['worktree', 'open', '--cwd', repoPath, '--path', checkoutPath, '--no-focus']));
 	}
 

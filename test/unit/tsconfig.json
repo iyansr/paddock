@@ -1,5 +1,16 @@
 {
 	"extends": "../../tsconfig.json",
 	"compilerOptions": { "rootDir": "../..", "noEmit": true, "types": ["node"] },
-	"include": ["./**/*.ts", "../../src/store.ts", "../../src/herdr/parse.ts", "../../src/herdr/frames.ts", "../../src/herdr/names.ts", "../../src/layout.ts", "../integration/**/*.ts", "../../src/herdr/cli.ts", "../../src/tree/model.ts", "../../src/checkouts.ts"]
+	"include": [
+		"./**/*.ts",
+		"../../src/store.ts",
+		"../../src/herdr/parse.ts",
+		"../../src/herdr/frames.ts",
+		"../../src/herdr/names.ts",
+		"../../src/layout.ts",
+		"../integration/**/*.ts",
+		"../../src/herdr/cli.ts",
+		"../../src/tree/model.ts",
+		"../../src/checkouts.ts"
+	]
 }

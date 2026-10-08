@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { checkoutAt, checkoutKey, checkoutName, checkoutOf, checkoutPath, type Worktrees } from '../../src/checkouts';
 import type { Project } from '../../src/store';
 

@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import * as os from 'node:os';
+
 import * as vscode from 'vscode';
+
 import type { Sessions } from '../sessions';
 import { moveGroups, moveProjects, setCollapsed, type Store } from '../store';
 import { buildModel, parseMessage, VIEW_ID, type ToView, type ViewModel } from './model';
@@ -27,7 +29,10 @@ export class ProjectsView implements vscode.WebviewViewProvider {
 	resolveWebviewView(view: vscode.WebviewView): void {
 		this.view = view;
 		const { webview } = view;
-		webview.options = { enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist'), vscode.Uri.joinPath(this.extensionUri, 'media')] };
+		webview.options = {
+			enableScripts: true,
+			localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist'), vscode.Uri.joinPath(this.extensionUri, 'media')],
+		};
 		webview.html = this.html(webview);
 		webview.onDidReceiveMessage(raw => void this.receive(raw));
 		view.onDidChangeVisibility(() => view.visible && this.post());

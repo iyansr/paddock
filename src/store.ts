@@ -64,11 +64,7 @@ function renumber(data: PaddockData): PaddockData {
 	return { groups, projects };
 }
 
-export function addProject(
-	data: PaddockData,
-	project: { name: string; path: string; groupId?: string },
-	id = randomUUID(),
-): PaddockData {
+export function addProject(data: PaddockData, project: { name: string; path: string; groupId?: string }, id = randomUUID()): PaddockData {
 	if (data.projects.some(p => p.path === project.path)) {
 		return data;
 	}
@@ -119,7 +115,10 @@ export function moveProjects(data: PaddockData, projectIds: string[], groupId: s
 	if (!data.groups.some(g => g.id === groupId) || (beforeProjectId && moving.has(beforeProjectId))) {
 		return data;
 	}
-	const moved = data.projects.filter(p => moving.has(p.id)).sort(byGroupThenOrder(data)).map(p => ({ ...p, groupId }));
+	const moved = data.projects
+		.filter(p => moving.has(p.id))
+		.sort(byGroupThenOrder(data))
+		.map(p => ({ ...p, groupId }));
 	const staying = data.projects.filter(p => !moving.has(p.id));
 	const target = staying.filter(p => p.groupId === groupId).sort((a, b) => a.order - b.order);
 	const at = beforeProjectId ? target.findIndex(p => p.id === beforeProjectId) : -1;
@@ -144,8 +143,7 @@ export function moveGroups(data: PaddockData, groupIds: string[], beforeGroupId?
 
 function byGroupThenOrder(data: PaddockData) {
 	const groupOrder = new Map(data.groups.map(g => [g.id, g.order]));
-	return (a: Project, b: Project) =>
-		(groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0) || a.order - b.order;
+	return (a: Project, b: Project) => (groupOrder.get(a.groupId) ?? 0) - (groupOrder.get(b.groupId) ?? 0) || a.order - b.order;
 }
 
 // --- persistence -----------------------------------------------------------

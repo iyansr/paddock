@@ -4,7 +4,10 @@ const MAX_NAME = 32;
 export const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 
 function slug(text: string): string {
-	const s = text.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+	const s = text
+		.toLowerCase()
+		.replace(/[^a-z0-9_-]+/g, '-')
+		.replace(/^-+|-+$/g, '');
 	return /^[a-z]/.test(s) ? s : `p${s}`;
 }
 
