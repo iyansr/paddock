@@ -102,6 +102,10 @@ export function deleteGroup(data: PaddockData, groupId: string): PaddockData {
 	return moveProjects(remaining, moved, UNGROUPED_ID);
 }
 
+export function setWorkspaceId(data: PaddockData, projectId: string, workspaceId: string): PaddockData {
+	return { ...data, projects: data.projects.map(p => (p.id === projectId ? { ...p, workspaceId } : p)) };
+}
+
 export function setCollapsed(data: PaddockData, groupId: string, collapsed: boolean): PaddockData {
 	return { ...data, groups: data.groups.map(g => (g.id === groupId ? { ...g, collapsed } : g)) };
 }

@@ -19,7 +19,7 @@ export class ProjectsDnd implements vscode.TreeDragAndDropController<Node> {
 	constructor(private readonly store: Store) {}
 
 	handleDrag(source: readonly Node[], data: vscode.DataTransfer): void {
-		const movable = source.filter(n => n.kind !== 'add');
+		const movable = source.filter(n => n.kind === 'project' || n.kind === 'group');
 		if (movable.length) {
 			data.set(MIME, new vscode.DataTransferItem(movable));
 		}
@@ -34,6 +34,9 @@ export class ProjectsDnd implements vscode.TreeDragAndDropController<Node> {
 		}
 		const projectIds = dragged.filter(n => n.kind === 'project').map(n => n.id);
 		const groupIds = dragged.filter(n => n.kind === 'group').map(n => n.id);
+		if (target?.kind === 'session') {
+			return;
+		}
 
 		if (projectIds.length) {
 			const { projects } = this.store.snapshot;

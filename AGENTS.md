@@ -14,7 +14,7 @@ Read these before changing behaviour:
 
 - `docs/PRD.md`: what Paddock must do (requirements R1 to R18).
 - `docs/PLAN.md`: architecture, data model, milestones M0 to M5 and the API calls for each.
-- `docs/paddock-mock.html`: interactive mock of the intended UI (sidebar with groups, session badges, project switching, the element picker with Copy and Send). Open it in a browser, or read its HTML for layout, labels and wording. The same mock is published at https://claude.ai/artifact/ASR1ncW9xQa1GhSsu8KWZS, but that link needs a signed-in claude.ai account, so use the local copy. The mock shows look and flow only; where it differs from the PRD, the PRD wins.
+- `docs/mock.html`: interactive mock of the intended UI (sidebar with groups, session badges, project switching, the element picker with Copy and Send). Open it in a browser, or read its HTML for layout, labels and wording. The same mock is published at https://claude.ai/artifact/ASR1ncW9xQa1GhSsu8KWZS, but that link needs a signed-in claude.ai account, so use the local copy. The mock shows look and flow only; where it differs from the PRD, the PRD wins.
 
 If a change contradicts either document, stop and ask instead of picking one yourself.
 
@@ -27,6 +27,7 @@ pnpm run compile      # one-off build
 pnpm run check-types  # tsc --noEmit
 pnpm run lint
 pnpm run test:unit    # Vitest, no VS Code needed
+pnpm run test:herdr   # Vitest against a real herdr server on a throwaway session
 pnpm test             # integration tests with @vscode/test-electron
 pnpm dlx @vscode/vsce package   # build the .vsix
 ```
@@ -39,7 +40,10 @@ Run `check-types`, `lint` and `test:unit` before saying a task is done.
 src/
   extension.ts        activate(): registers the tree, commands and status polling
   herdr/cli.ts        the only place that runs herdr; returns parsed JSON
-  herdr/terminal.ts   Pseudoterminal over `herdr terminal session control`
+  herdr/terminal.ts   Pseudoterminal over `herdr terminal session control` (the only file in herdr/ that imports VS Code)
+  herdr/parse.ts      validates herdr JSON; herdr/frames.ts stream protocol; herdr/names.ts agent names
+  sessions.ts         sessions per project, open terminals, layout, project switching
+  layout.ts           saved open-terminal layout (pure)
   herdr/status.ts     polls `herdr agent list`, maps states
   store.ts            groups and projects in globalState, layout in workspaceState
   tree/provider.ts    TreeDataProvider for paddock.projects
@@ -56,12 +60,12 @@ docs/
 
 ### herdr
 
-- Call herdr only through `src/herdr/cli.ts`, with `child_process.execFile` and an argument array. Never build a shell string.
+- Call herdr only through `src/herdr/cli.ts`, with `child_process.execFile` (or `spawn` for the long-lived terminal stream) and an argument array. Never build a shell string.
 - Always set `HERDR_SESSION` from the `paddock.herdrSession` setting (default `paddock`). Never touch herdr's default session.
 - Use the herdr binary from the `paddock.herdrPath` setting when it is set. VS Code often starts without the user's shell `PATH`.
 - Pane, tab and workspace IDs come from herdr's JSON responses only. Never construct or predict them, and refresh IDs after any `pane move`.
 - Agent names must match `[a-z][a-z0-9_-]{0,31}`.
-- Shapes of `terminal.input`, `terminal.resize`, `terminal.scroll` and `terminal.release` follow `herdr api schema --json`, saved as `herdr-api.schema.json`. Check it before changing the stream code.
+- `herdr-api.schema.json` (from `herdr api schema --json`) describes the socket API. The `terminal session control` stream (`terminal.frame`, `terminal.input`, `terminal.resize`, `terminal.scroll`, `terminal.release`) is not in it; its shapes live in `src/herdr/frames.ts` and are checked by `test/integration/herdr.test.ts`. Re-run that test after upgrading herdr.
 - Closing a VS Code terminal must release the pane (`terminal.release`), not close it. Only the explicit Kill action runs `herdr pane close`.
 - Do not use tmux or any other multiplexer.
 
@@ -87,7 +91,7 @@ docs/
 ## Testing
 
 - Unit-test parsing of herdr responses, `terminal.frame` decoding, state mapping, the pick format and style filtering.
-- Integration tests run against a real herdr server on a throwaway session name such as `paddock-test-<random>`. Tear it down afterwards. Never run tests against the `paddock` session; it holds my real agents.
+- Integration tests (`test:herdr`) run against a real herdr server on a throwaway session name such as `paddock-test-<random>`. Tear it down afterwards. Never run tests against the `paddock` session; it holds my real agents.
 - Before finishing a milestone, go through its manual checklist in `docs/PLAN.md`.
 
 ## Working on milestones
