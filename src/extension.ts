@@ -38,6 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
 				void sessions.refresh();
 			}
 		}),
+		sessions.startPolling(2000),
 		...registerCommands(store, sessions),
 	);
 

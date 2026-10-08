@@ -17,6 +17,8 @@ export interface PtyEvents {
 export class HerdrPty implements vscode.Pseudoterminal {
 	private readonly write = new vscode.EventEmitter<string>();
 	private readonly close_ = new vscode.EventEmitter<number | void>();
+	private readonly nameChanged = new vscode.EventEmitter<string>();
+	readonly onDidChangeName = this.nameChanged.event;
 	readonly onDidWrite = this.write.event;
 	readonly onDidClose = this.close_.event;
 
@@ -48,6 +50,11 @@ export class HerdrPty implements vscode.Pseudoterminal {
 			setTimeout(() => proc.kill(), 1000).unref();
 		}
 		this.events.onClosed();
+	}
+
+	/** Retitles the terminal tab. */
+	setName(name: string): void {
+		this.nameChanged.fire(name);
 	}
 
 	handleInput(data: string): void {
@@ -89,8 +96,10 @@ export class HerdrPty implements vscode.Pseudoterminal {
 				if (record?.type === 'frame') {
 					this.write.fire(decoder.write(record.bytes));
 				} else if (record?.type === 'closed' && !this.released) {
-					// The pane exited or another controller took over.
+					// The pane exited or another controller took over. VS Code does not
+					// always call close() when the pty closes itself, so report it here too.
 					this.ended = true;
+					this.events.onClosed();
 					this.close_.fire(0);
 				}
 			}

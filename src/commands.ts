@@ -4,7 +4,7 @@ import { AGENT_NAME } from './herdr/names';
 import { PRESETS } from './presets';
 import type { Sessions } from './sessions';
 import { addGroup, addProject, deleteGroup, moveProjects, removeProject, renameGroup, sortedGroups, Store, UNGROUPED_ID } from './store';
-import type { Node } from './tree/provider';
+import { TREE_VIEW_ID, type Node } from './tree/provider';
 
 /** Tree context-menu commands get (clicked node, all selected nodes). */
 function targets(node: Node | undefined, selected: readonly Node[] | undefined, kind: Node['kind']): Node[] {
@@ -63,8 +63,17 @@ export function registerCommands(store: Store, sessions: Sessions): vscode.Dispo
 				canSelectMany: true,
 				openLabel: 'Add project',
 			});
+			const before = store.snapshot.projects.length;
 			for (const uri of picked ?? []) {
 				await store.update(d => addProject(d, { name: path.basename(uri.fsPath), path: uri.fsPath, groupId }));
+			}
+			const added = store.snapshot.projects.length - before;
+			if (picked?.length) {
+				// The sidebar may be hidden (an empty window has none), so show where the project went.
+				await vscode.commands.executeCommand(`${TREE_VIEW_ID}.focus`);
+				void vscode.window.showInformationMessage(
+					added ? `Added ${added} project${added > 1 ? 's' : ''} to Paddock.` : 'Already in Paddock.',
+				);
 			}
 		}),
 

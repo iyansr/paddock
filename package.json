@@ -277,6 +277,15 @@
           ],
           "default": "panel",
           "description": "Where new session terminals open."
+        },
+        "paddock.switchMode": {
+          "type": "string",
+          "enum": [
+            "reload",
+            "swap"
+          ],
+          "default": "reload",
+          "markdownDescription": "How clicking a project switches to it. `reload` reopens the folder (VS Code reloads the window). `swap` (experimental) keeps the window as a multi-root workspace with a placeholder folder first and swaps only the project folder, which avoids the reload."
         }
       }
     }

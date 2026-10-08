@@ -20,7 +20,8 @@ export interface PaneInfo {
 }
 
 export interface AgentInfo {
-	name: string;
+	/** Unset for an agent the user started by hand in a shell pane. */
+	name?: string;
 	/** herdr's agent kind, e.g. `claude`. */
 	kind: string;
 	paneId: string;
@@ -100,7 +101,7 @@ export function parseAgentList(result: Obj): AgentInfo[] {
 	return list(result, 'agents', 'result').map(value => {
 		const a = obj(value, 'agent');
 		return {
-			name: str(a, 'name', 'agent'),
+			name: optStr(a, 'name'),
 			kind: optStr(a, 'agent') ?? 'unknown',
 			paneId: str(a, 'pane_id', 'agent'),
 			workspaceId: str(a, 'workspace_id', 'agent'),

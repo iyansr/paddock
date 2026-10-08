@@ -9,7 +9,10 @@ export interface OpenSession {
 	location: TerminalLocation;
 }
 
-export const LAYOUT_KEY = 'paddock.layout';
+/** Open sessions per project id. A multi-root window shares one workspaceState, so this is keyed by project. */
+export type Layouts = Record<string, OpenSession[]>;
+
+export const LAYOUTS_KEY = 'paddock.layouts';
 
 export function upsert(layout: OpenSession[], session: OpenSession): OpenSession[] {
 	return [...layout.filter(s => s.paneId !== session.paneId), session];

@@ -39,7 +39,7 @@ All requirements below are in scope for v1; later work is listed at the end.
 - **R1 Projects and groups.** A Paddock view in its own activity bar container lists projects I add by folder. Projects can sit at the top level or inside groups I name (for example Personal and Company A); a `+` on each group adds a project straight into it, and an "Add project" row at the bottom of the tree adds one at the top level. Drag and drop reorders projects, moves them between groups (or out to the top level) and reorders the groups; "Move to group" in the context menu does the same from the keyboard. A collapsed group shows how many of its sessions are waiting. Groups and order are stored globally, so every window sees them.
 - **R2 Worktrees.** Each project expands to its git worktrees (`herdr worktree list`). I can create a worktree from a branch name and remove one.
 - **R3 Sessions.** Each worktree expands to its agent sessions. "New session" asks for an agent preset (Claude Code, Codex, plain shell) and starts it in its own herdr pane.
-- **R4 Switch project.** Clicking a project or worktree that isn't open reopens that folder in the same window. Its sessions reattach automatically after the reload.
+- **R4 Switch project.** Clicking a project or worktree that isn't open switches the same window to that folder. With `paddock.switchMode` set to `reload` the folder is reopened and its sessions reattach after the reload; with `swap` the window is a saved multi-root workspace and only the project folder is replaced, with no reload. Either way each project keeps its own open files (including unsaved edits) and terminals.
 - **R5 Status badges.** Every session shows running, waiting for input, done or exited, updated live from herdr's own agent detection. Projects that aren't open still show their badges, plus a count of sessions waiting on me.
 - **R6 Notifications.** A session that starts waiting for input shows a VS Code notification with a "Go to session" action, which switches project if needed.
 - **R7 Manage sessions.** Rename, restart and kill sessions from the sidebar context menu.
@@ -96,7 +96,7 @@ All requirements below are in scope for v1; later work is listed at the end.
 
 - **herdr is pre-1.0 (v0.9.3).** Its CLI and socket API may change. Mitigation: require a minimum version and check `herdr api schema` on activation.
 - **One controller per pane.** Opening a pane in VS Code takes control from herdr's own TUI or another device. Mitigation: take over only when I open the pane, and release it when the tab closes.
-- **Reload delay on switch.** Reopening a folder takes a few seconds and restarts language servers. If this proves too slow, a multi-root mode is the fallback.
+- **Reload delay on switch.** Reopening a folder takes a few seconds and restarts language servers. The `swap` mode avoids the reload (the switch is near-instant in testing) at the cost of a permanent `Paddock` placeholder folder at the top of the Explorer, which VS Code cannot hide; collapsing it once is remembered.
 - **Detection can be unsure.** herdr reports `unknown` when it can't classify an agent. Mitigation: show it as running, and offer herdr's Claude Code and Codex integrations for exact state.
 
 ### Open questions

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/frames';
-import { AGENT_NAME, nextAgentName } from '../../src/herdr/names';
+import { AGENT_NAME, displayName, nextAgentName } from '../../src/herdr/names';
 import {
 	HerdrError, isSupportedVersion, parseAgentList, parseCreated, parseEnvelope, parsePaneList,
 	parseServerRunning, parseWorkspaceList,
@@ -46,6 +46,11 @@ describe('parsers', () => {
 		});
 		expect(agents).toEqual([{ name: 'dummy-1', kind: 'claude', paneId: 'w1:p2', workspaceId: 'w1', status: 'blocked' }]);
 	});
+	it('parses an agent started by hand, which has no name', () => {
+		const [agent] = parseAgentList({ agents: [{ agent: 'claude', agent_status: 'working', pane_id: 'w1:p1', workspace_id: 'w1' }] });
+		expect(agent.name).toBeUndefined();
+		expect(agent.kind).toBe('claude');
+	});
 	it('parses workspaces', () => {
 		expect(parseWorkspaceList({ workspaces: [{ workspace_id: 'w1', label: 'scratch' }] })).toEqual([{ workspaceId: 'w1', label: 'scratch' }]);
 	});
@@ -74,6 +79,14 @@ describe('agent names', () => {
 	});
 	it('stays within 32 characters for a long name', () => {
 		expect(nextAgentName('x'.repeat(80), ['x'.repeat(30) + '-1']).length).toBeLessThanOrEqual(32);
+	});
+});
+
+describe('displayName', () => {
+	it('prefers the agent name, then the kind, then shell', () => {
+		expect(displayName('nodus-1', 'claude', 'w1:p2')).toBe('nodus-1');
+		expect(displayName(undefined, 'claude', 'w1:p2')).toBe('claude p2');
+		expect(displayName(undefined, undefined, 'w1:p3')).toBe('shell p3');
 	});
 });
 

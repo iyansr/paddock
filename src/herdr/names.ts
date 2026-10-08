@@ -20,3 +20,16 @@ export function nextAgentName(projectName: string, taken: Iterable<string>): str
 		}
 	}
 }
+
+/**
+ * What the sidebar and terminal tab call a session: the agent's name when it has one,
+ * else its kind (an agent the user started by hand has no name), else `shell`.
+ * The pane number keeps two unnamed sessions apart.
+ */
+export function displayName(agentName: string | undefined, kind: string | undefined, paneId: string): string {
+	if (agentName) {
+		return agentName;
+	}
+	const number = paneId.split(':')[1] ?? paneId;
+	return `${kind ?? 'shell'} ${number}`;
+}
