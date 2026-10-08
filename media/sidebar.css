@@ -218,9 +218,12 @@ body {
 	border-radius: 6px;
 }
 
-/* Hover actions, as in the native tree's inline buttons. */
+/* Hover actions, as in the native tree's inline buttons. Zero height so the buttons
+   overflow the row instead of growing it when they appear. */
 .actions {
 	display: none;
+	align-items: center;
+	height: 0;
 	margin-left: auto;
 	gap: 2px;
 }
@@ -300,6 +303,13 @@ body {
 
 .dot.done {
 	background: var(--done);
+}
+
+/* A plain shell has no agent state; the dot fills the status column so rows line up. */
+.dot.shell {
+	align-self: center;
+	margin: 0 auto;
+	background: var(--run);
 }
 
 .st.done {
