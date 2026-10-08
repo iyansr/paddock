@@ -287,7 +287,7 @@
 						"panel",
 						"editor"
 					],
-					"default": "panel",
+					"default": "editor",
 					"description": "Where new session terminals open."
 				},
 				"paddock.switchMode": {

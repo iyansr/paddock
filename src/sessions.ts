@@ -524,7 +524,7 @@ export class Sessions {
 	// --- terminals -----------------------------------------------------------
 
 	private location(): TerminalLocation {
-		return vscode.workspace.getConfiguration('paddock').get<TerminalLocation>('terminalLocation') === 'editor' ? 'editor' : 'panel';
+		return vscode.workspace.getConfiguration('paddock').get<TerminalLocation>('terminalLocation') === 'panel' ? 'panel' : 'editor';
 	}
 
 	/** Focuses the session's terminal, opening it first if needed. */
@@ -593,7 +593,8 @@ export class Sessions {
 		for (const saved of restorable(this.layouts[key] ?? [], panes)) {
 			const session = panes.find(p => p.paneId === saved.paneId);
 			if (session) {
-				this.show(session, { location: saved.location, preserveFocus: true });
+				// Reopen where the setting says, not where the terminal was last time.
+				this.show(session, { preserveFocus: true });
 			}
 		}
 		const pending = this.context.globalState.get<PendingOpen>(PENDING_KEY);
@@ -751,14 +752,9 @@ export class Sessions {
 
 	/** Kills the session and starts a fresh one of the same kind and name. */
 	async restart(session: SessionInfo, c: Checkout): Promise<void> {
-		const location = this.terminals.get(session.paneId)?.session.location;
 		await this.kill(session);
 		const preset: Preset = { id: session.kind ?? 'shell', label: session.name, kind: session.kind };
-		const started = await this.start(c, preset, { name: session.kind ? session.name : undefined });
-		if (started && location && location !== this.location()) {
-			this.dispose(started.paneId);
-			this.show(started, { location });
-		}
+		await this.start(c, preset, { name: session.kind ? session.name : undefined });
 	}
 
 	// --- worktrees -----------------------------------------------------------
