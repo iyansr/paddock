@@ -6,7 +6,7 @@ import type { PaneInfo } from './herdr/parse';
 import { PRESETS } from './presets';
 import type { Sessions } from './sessions';
 import { addGroup, addProject, deleteGroup, moveProjects, removeProject, renameGroup, sortedGroups, Store, UNGROUPED_ID } from './store';
-import { TREE_VIEW_ID, type Node } from './tree/provider';
+import { VIEW_ID, type Node } from './tree/model';
 
 /** Tree context-menu commands get (clicked node, all selected nodes). */
 function targets(node: Node | undefined, selected: readonly Node[] | undefined, kind: Node['kind']): Node[] {
@@ -116,7 +116,7 @@ export function registerCommands(store: Store, sessions: Sessions): vscode.Dispo
 			}
 			if (picked?.length) {
 				// The sidebar may be hidden (an empty window has none), so show where the project went.
-				await vscode.commands.executeCommand(`${TREE_VIEW_ID}.focus`);
+				await vscode.commands.executeCommand(`${VIEW_ID}.focus`);
 				void vscode.window.showInformationMessage(
 					added ? `Added ${added} project${added > 1 ? 's' : ''} to Paddock.` : 'Already in Paddock.',
 				);

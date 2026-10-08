@@ -78,10 +78,10 @@ Build in this order; M1 alone already replaces Orca's project switching.
 
 ### M0 Scaffold, groups and ordering
 
-- **Tree with drag and drop.** `window.createTreeView('paddock.projects', { treeDataProvider, dragAndDropController, canSelectMany: true })`. The controller declares the mime type `application/vnd.code.tree.paddock.projects` for both drag and drop.
-- **Drop rules.** VS Code trees drop onto an item, not into a gap, so: a project dropped on a project goes before it, in that project's group (or among the top-level projects); a project dropped on a group goes to the end of that group; a project dropped on empty space goes to the top level; a group dropped on a group goes before it.
-- **Persist.** `handleDrop` rewrites `order` for the affected group (or for all groups) in `globalState`, then fires `onDidChangeTreeData`. `onDidCollapseElement` and `onDidExpandElement` save `collapsed`.
-- **Keyboard path.** Context menu commands New group, Rename group, Delete group (projects move to the top level), Move to group (with a No group choice) a `+` on each group that adds a project straight into it, and an always-visible "Add project" row at the bottom of the tree for the top level, since tree drag and drop has no keyboard equivalent.
+- **Sidebar is a webview view.** `paddock.projects` is a `WebviewView` (`src/tree/view.ts`), not a `TreeView`, so it can draw Orca-style rows: pill badges, a `primary` chip, a card around the open checkout and agent icons. `src/tree/model.ts` builds the rows as plain data (pure, unit-tested) and validates every message from the webview; `src/webview/sidebar.ts` draws them and is bundled separately to `dist/sidebar.js`. Right-click menus are native, contributed under `webview/context` with `webviewSection` set per row through `data-vscode-context`; hover buttons cover the old inline actions. The webview implements tree keyboard navigation itself (arrows, Home/End, Enter, Shift+F10). Multi-select is gone.
+- **Drop rules.** A project dropped on the top half of a project goes before it, on the bottom half after it, in that project's group; a project dropped on a group goes to the end of that group; a project dropped below the list goes to the top level; a group dropped on a group goes before or after it.
+- **Persist.** Drops rewrite `order` in `globalState` through `moveProjects` and `moveGroups`. Collapsing a group saves `collapsed`; project and session-list expansion is per-view state in the webview.
+- **Keyboard path.** Context menu commands New group, Rename group, Delete group (projects move to the top level), Move to group (with a No group choice) a `+` on each group that adds a project straight into it, and the Add project and New group title-bar buttons (and an empty-state with both), since drag and drop has no keyboard equivalent.
 - **Group badge.** A group's `description` shows its waiting count, read from the same status data as session badges.
 
 ### M1 Sessions

@@ -46,8 +46,9 @@ src/
   layout.ts           saved open-terminal layout (pure)
   herdr/status.ts     polls `herdr agent list`, maps states
   store.ts            groups and projects in globalState, layout in workspaceState
-  tree/provider.ts    TreeDataProvider for paddock.projects
-  tree/dnd.ts         TreeDragAndDropController
+  tree/model.ts       sidebar rows as plain data, webview message validation (pure)
+  tree/view.ts        WebviewViewProvider for paddock.projects
+  webview/sidebar.ts  sidebar script, runs in the webview (bundled to dist/sidebar.js)
   picker/             Playwright launch, CDP capture, pick format, copy and send
 test/
   unit/               Vitest

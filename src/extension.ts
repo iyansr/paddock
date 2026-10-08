@@ -3,9 +3,8 @@ import { registerCommands } from './commands';
 import { Herdr, type HerdrConfig } from './herdr/cli';
 import { isSupportedVersion, MIN_HERDR_VERSION } from './herdr/parse';
 import { Sessions } from './sessions';
-import { setCollapsed, Store } from './store';
-import { ProjectsDnd } from './tree/dnd';
-import { ProjectsProvider, TREE_VIEW_ID } from './tree/provider';
+import { Store } from './store';
+import { ProjectsView } from './tree/view';
 
 function readConfig(): HerdrConfig {
 	const c = vscode.workspace.getConfiguration('paddock');
@@ -19,18 +18,9 @@ export function activate(context: vscode.ExtensionContext) {
 	const herdr = new Herdr(readConfig);
 	const sessions = new Sessions(herdr, store, context);
 	active = sessions;
-	const provider = new ProjectsProvider(store, sessions);
-
-	const view = vscode.window.createTreeView(TREE_VIEW_ID, {
-		treeDataProvider: provider,
-		dragAndDropController: new ProjectsDnd(store),
-		canSelectMany: true,
-	});
 
 	context.subscriptions.push(
-		view,
-		view.onDidCollapseElement(e => e.element.kind === 'group' && store.update(d => setCollapsed(d, e.element.id, true))),
-		view.onDidExpandElement(e => e.element.kind === 'group' && store.update(d => setCollapsed(d, e.element.id, false))),
+		new ProjectsView(context.extensionUri, store, sessions).register(),
 		// globalState is shared between windows but not pushed to them; re-read on focus.
 		vscode.window.onDidChangeWindowState(s => {
 			if (s.focused) {

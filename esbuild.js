@@ -42,11 +42,27 @@ async function main() {
 			esbuildProblemMatcherPlugin,
 		],
 	});
-	if (watch) {
-		await ctx.watch();
-	} else {
-		await ctx.rebuild();
-		await ctx.dispose();
+	// The sidebar's script runs in its webview, not in the extension host.
+	const webview = await esbuild.context({
+		entryPoints: ['src/webview/sidebar.ts'],
+		bundle: true,
+		format: 'iife',
+		minify: production,
+		sourcemap: !production,
+		sourcesContent: false,
+		platform: 'browser',
+		target: 'es2022',
+		outfile: 'dist/sidebar.js',
+		logLevel: 'silent',
+		plugins: [esbuildProblemMatcherPlugin],
+	});
+	for (const c of [ctx, webview]) {
+		if (watch) {
+			await c.watch();
+		} else {
+			await c.rebuild();
+			await c.dispose();
+		}
 	}
 }
 
