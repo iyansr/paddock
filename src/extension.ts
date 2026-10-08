@@ -40,6 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		}),
 		sessions.startPolling(2000),
+		sessions.watchBranches(),
 		...registerCommands(store, sessions),
 	);
 
@@ -68,6 +69,7 @@ async function startHerdr(herdr: Herdr, sessions: Sessions): Promise<void> {
 		await sessions.refreshWorktrees();
 		await sessions.restore();
 		await sessions.refresh();
+		await sessions.finishPendingRemove();
 	} catch (e) {
 		void vscode.window.showErrorMessage(`Paddock: ${e instanceof Error ? e.message : String(e)}`);
 	}

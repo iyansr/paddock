@@ -211,26 +211,17 @@ export function registerCommands(store: Store, sessions: Sessions): vscode.Dispo
 			if (!checkout?.worktree) {
 				return;
 			}
-			const name = checkoutName(checkout);
 			const running = sessions.sessionsIn(checkout).length;
+			const stops = running ? ` and stops its ${running} session${running > 1 ? 's' : ''}` : '';
+			const switches = sessions.isCurrent(checkout) ? ` This window switches to ${checkout.project.name} first.` : '';
 			const answer = await vscode.window.showWarningMessage(
-				`Remove worktree ${name}?`,
-				{
-					modal: true,
-					detail: `Deletes the checkout at ${checkout.worktree.path}${running ? ` and stops its ${running} session${running > 1 ? 's' : ''}` : ''}. The branch is kept.`,
-				},
+				`Remove worktree ${checkoutName(checkout)}?`,
+				{ modal: true, detail: `Deletes the checkout at ${checkout.worktree.path}${stops}. The branch is kept.${switches}` },
 				'Remove',
 			);
-			if (answer !== 'Remove') {
-				return;
+			if (answer === 'Remove') {
+				await sessions.removeWorktree(checkout);
 			}
-			const confirmForce = async () =>
-				(await vscode.window.showWarningMessage(
-					`${name} has uncommitted or untracked changes.`,
-					{ modal: true, detail: 'Removing it anyway deletes those changes. The branch and its commits are kept.' },
-					'Remove Anyway',
-				)) === 'Remove Anyway';
-			await sessions.removeWorktree(checkout, confirmForce);
 		})),
 
 		vscode.commands.registerCommand('paddock.openSession', guarded(async (node?: Node) => {

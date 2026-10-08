@@ -27,9 +27,20 @@ export interface SessionInfo {
 }
 
 const PENDING_KEY = 'paddock.pendingOpen';
+/** A worktree whose removal waits for the window to finish switching away from it. */
+const PENDING_REMOVE_KEY = 'paddock.pendingRemove';
 const INTEGRATION_ASKED_KEY = 'paddock.integrationAsked';
 /** Agent kinds herdr can read exact state from once its integration is installed. */
 const INTEGRATION_KINDS = new Set(['claude', 'codex']);
+
+interface PendingRemove {
+	projectId: string;
+	worktreePath: string;
+	/** Date.now() when asked; a stale request (the switch was cancelled) is dropped. */
+	at: number;
+}
+
+const PENDING_REMOVE_TTL_MS = 60_000;
 
 interface PendingOpen {
 	/** checkoutKey() of the checkout to open it in. */
@@ -215,6 +226,47 @@ export class Sessions {
 			fresh.forEach(c => this.unknownCheckouts.add(c));
 			void this.refreshWorktrees();
 		}
+	}
+
+	/**
+	 * Re-lists worktrees when a checkout changes branch (`git checkout` in a terminal), by
+	 * watching each project's HEAD and its linked worktrees' HEADs. Follows the project list.
+	 */
+	watchBranches(): vscode.Disposable {
+		let watchers: vscode.Disposable[] = [];
+		let timer: NodeJS.Timeout | undefined;
+		const changed = () => {
+			// git rewrites HEAD through a lock file, so one checkout fires several events.
+			clearTimeout(timer);
+			timer = setTimeout(() => void this.refreshWorktrees(), 300);
+		};
+		const watch = () => {
+			watchers.forEach(w => w.dispose());
+			watchers = this.store.snapshot.projects.map(p => {
+				const pattern = new vscode.RelativePattern(vscode.Uri.file(path.join(p.path, '.git')), '{HEAD,worktrees/*/HEAD}');
+				const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+				watcher.onDidChange(changed);
+				watcher.onDidCreate(changed);
+				return watcher;
+			});
+		};
+		let paths = '';
+		const sub = this.store.onDidChange(() => {
+			const next = this.store.snapshot.projects.map(p => p.path).join('\n');
+			if (next !== paths) {
+				paths = next;
+				watch();
+			}
+		});
+		paths = this.store.snapshot.projects.map(p => p.path).join('\n');
+		watch();
+		return {
+			dispose: () => {
+				clearTimeout(timer);
+				sub.dispose();
+				watchers.forEach(w => w.dispose());
+			},
+		};
 	}
 
 	/** Re-reads every project's worktrees from herdr. A quiet no-op when the server is not up. */
@@ -699,32 +751,69 @@ export class Sessions {
 
 	/**
 	 * Removes a linked worktree's checkout and closes its workspace, stopping its sessions.
-	 * The branch stays. With uncommitted changes it asks `confirmForce` before forcing.
-	 * Returns false when that was declined.
+	 * The branch stays. With uncommitted changes it asks before forcing.
+	 *
+	 * When this window has the worktree open, it first switches to the project's own folder.
+	 * A reload ends this extension host mid-switch, so the removal is stored and finished by
+	 * finishPendingRemove() after the reload; a swap in place carries on here.
 	 */
-	async removeWorktree(c: Checkout, confirmForce: () => Promise<boolean>): Promise<boolean> {
+	async removeWorktree(c: Checkout): Promise<void> {
 		if (!c.worktree) {
 			throw new Error('Only a linked worktree can be removed');
 		}
 		if (this.isCurrent(c)) {
-			throw new Error(`This window has ${checkoutName(c)} open. Switch to another checkout before removing it.`);
+			const pending: PendingRemove = { projectId: c.project.id, worktreePath: c.worktree.path, at: Date.now() };
+			await this.context.globalState.update(PENDING_REMOVE_KEY, pending);
+			await this.switchTo({ project: c.project });
+			if (this.isCurrent(c)) {
+				// The window is reloading (or the switch was cancelled); finishPendingRemove() decides.
+				return;
+			}
+			await this.context.globalState.update(PENDING_REMOVE_KEY, undefined);
 		}
+		await this.removeNow(c.project, c.worktree);
+	}
+
+	/** Finishes a removal that switched this window away from the worktree first. */
+	async finishPendingRemove(): Promise<void> {
+		const pending = this.context.globalState.get<PendingRemove>(PENDING_REMOVE_KEY);
+		if (!pending) {
+			return;
+		}
+		await this.context.globalState.update(PENDING_REMOVE_KEY, undefined);
+		const current = this.currentCheckout();
+		const target = this.checkout(pending.projectId, pending.worktreePath);
+		// Only when the switch landed on the project's own folder; anything else means it did not go through.
+		const fresh = Date.now() - pending.at < PENDING_REMOVE_TTL_MS;
+		if (!fresh || !target?.worktree || current?.project.id !== pending.projectId || current.worktree) {
+			return;
+		}
+		await this.removeNow(target.project, target.worktree);
+	}
+
+	private async removeNow(project: Project, worktree: WorktreeInfo): Promise<void> {
+		const c: Checkout = { project, worktree };
 		await this.herdr.ensureServer();
 		// herdr removes through the worktree's workspace, so open one if herdr closed it.
-		const { workspaceId, rootPane } = await this.ensureWorktreeWorkspace(c.project, c.worktree);
+		const { workspaceId, rootPane } = await this.ensureWorktreeWorkspace(project, worktree);
 		try {
 			await this.herdr.worktreeRemove(workspaceId, false);
 		} catch (e) {
 			if (!(e instanceof HerdrError && e.code === 'dirty_worktree_requires_force')) {
 				throw e;
 			}
-			if (!(await confirmForce())) {
+			const force = await vscode.window.showWarningMessage(
+				`${checkoutName(c)} has uncommitted or untracked changes.`,
+				{ modal: true, detail: 'Removing it anyway deletes those changes. The branch and its commits are kept.' },
+				'Remove Anyway',
+			);
+			if (force !== 'Remove Anyway') {
 				if (rootPane) {
 					// Opened only to remove it; do not leave a stray shell behind.
 					await this.herdr.paneClose(rootPane.paneId);
 				}
 				await this.refresh();
-				return false;
+				return;
 			}
 			await this.herdr.worktreeRemove(workspaceId, true);
 		}
@@ -739,6 +828,6 @@ export class Sessions {
 		await this.context.workspaceState.update(EDITORS_KEY, this.editors);
 		await this.refreshWorktrees();
 		await this.refresh();
-		return true;
+		void vscode.window.showInformationMessage(`Removed worktree ${checkoutName(c)}. The branch is kept.`);
 	}
 }

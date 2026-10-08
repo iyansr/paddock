@@ -212,6 +212,11 @@
           "command": "paddock.removeWorktree",
           "when": "view == paddock.projects && viewItem == worktree",
           "group": "9_remove@1"
+        },
+        {
+          "command": "paddock.removeWorktree",
+          "when": "view == paddock.projects && viewItem == worktree",
+          "group": "inline@1"
         }
       ],
       "commandPalette": [
