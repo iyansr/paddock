@@ -1,309 +1,309 @@
 {
-	"name": "paddock",
-	"displayName": "paddock",
-	"version": "0.0.1",
-	"description": "Switch projects in one VS Code window without losing your coding agents",
-	"categories": [
-		"Other"
-	],
-	"main": "./dist/extension.js",
-	"scripts": {
-		"vscode:prepublish": "pnpm run package",
-		"compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
-		"watch": "npm-run-all -p watch:*",
-		"watch:esbuild": "node esbuild.js --watch",
-		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-		"package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
-		"compile-tests": "tsc -p . --outDir out",
-		"watch-tests": "tsc -p . -w --outDir out",
-		"pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
-		"check-types": "tsc --noEmit && tsc -p test/unit/tsconfig.json",
-		"lint": "oxlint src test",
-		"test": "vscode-test",
-		"test:unit": "vitest run",
-		"test:herdr": "vitest run --config vitest.integration.config.mts",
-		"lint:fix": "oxlint --fix src test",
-		"format": "oxfmt",
-		"format:check": "oxfmt --check"
-	},
-	"devDependencies": {
-		"@types/mocha": "^10.0.10",
-		"@types/node": "24.x",
-		"@types/vscode": "^1.140.0",
-		"@vscode/test-cli": "^0.0.15",
-		"@vscode/test-electron": "^3.0.0",
-		"esbuild": "^0.28.1",
-		"npm-run-all": "^4.1.5",
-		"oxfmt": "^0.72.0",
-		"oxlint": "^1.87.0",
-		"typescript": "^6.0.3",
-		"vitest": "^5.0.3"
-	},
-	"overrides": {
-		"diff": "^8.0.4",
-		"serialize-javascript": "^7.0.6"
-	},
-	"contributes": {
-		"viewsContainers": {
-			"activitybar": [
-				{
-					"id": "paddock",
-					"title": "Paddock",
-					"icon": "media/paddock.svg"
-				}
-			]
-		},
-		"views": {
-			"paddock": [
-				{
-					"id": "paddock.projects",
-					"name": "Projects",
-					"type": "webview"
-				}
-			]
-		},
-		"commands": [
-			{
-				"command": "paddock.addProject",
-				"title": "Add Project",
-				"category": "Paddock",
-				"icon": "$(add)"
-			},
-			{
-				"command": "paddock.removeProject",
-				"title": "Remove Project",
-				"category": "Paddock",
-				"icon": "$(trash)"
-			},
-			{
-				"command": "paddock.newGroup",
-				"title": "New Group",
-				"category": "Paddock",
-				"icon": "$(new-folder)"
-			},
-			{
-				"command": "paddock.renameGroup",
-				"title": "Rename Group",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.deleteGroup",
-				"title": "Delete Group",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.moveToGroup",
-				"title": "Move to Group…",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.openProject",
-				"title": "Open Project",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.newSession",
-				"title": "New Session…",
-				"category": "Paddock",
-				"icon": "$(add)"
-			},
-			{
-				"command": "paddock.openSession",
-				"title": "Open Session",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.renameSession",
-				"title": "Rename Session",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.restartSession",
-				"title": "Restart Session",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.killSession",
-				"title": "Kill Session",
-				"category": "Paddock",
-				"icon": "$(trash)"
-			},
-			{
-				"command": "paddock.openWorktree",
-				"title": "Open Worktree",
-				"category": "Paddock"
-			},
-			{
-				"command": "paddock.newWorktree",
-				"title": "New Worktree…",
-				"category": "Paddock",
-				"icon": "$(git-branch)"
-			},
-			{
-				"command": "paddock.removeWorktree",
-				"title": "Remove Worktree…",
-				"category": "Paddock",
-				"icon": "$(trash)"
-			}
-		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "paddock.addProject",
-					"when": "view == paddock.projects",
-					"group": "navigation@1"
-				},
-				{
-					"command": "paddock.newGroup",
-					"when": "view == paddock.projects",
-					"group": "navigation@2"
-				}
-			],
-			"commandPalette": [
-				{
-					"command": "paddock.removeProject",
-					"when": "false"
-				},
-				{
-					"command": "paddock.renameGroup",
-					"when": "false"
-				},
-				{
-					"command": "paddock.deleteGroup",
-					"when": "false"
-				},
-				{
-					"command": "paddock.moveToGroup",
-					"when": "false"
-				},
-				{
-					"command": "paddock.openProject",
-					"when": "false"
-				},
-				{
-					"command": "paddock.openSession",
-					"when": "false"
-				},
-				{
-					"command": "paddock.renameSession",
-					"when": "false"
-				},
-				{
-					"command": "paddock.restartSession",
-					"when": "false"
-				},
-				{
-					"command": "paddock.killSession",
-					"when": "false"
-				},
-				{
-					"command": "paddock.openWorktree",
-					"when": "false"
-				},
-				{
-					"command": "paddock.removeWorktree",
-					"when": "false"
-				}
-			],
-			"webview/context": [
-				{
-					"command": "paddock.addProject",
-					"when": "webviewId == paddock.projects && webviewSection == group",
-					"group": "0_add@1"
-				},
-				{
-					"command": "paddock.newSession",
-					"when": "webviewId == paddock.projects && webviewSection == project",
-					"group": "0_session@1"
-				},
-				{
-					"command": "paddock.moveToGroup",
-					"when": "webviewId == paddock.projects && webviewSection == project",
-					"group": "1_organize@1"
-				},
-				{
-					"command": "paddock.removeProject",
-					"when": "webviewId == paddock.projects && webviewSection == project",
-					"group": "9_remove@1"
-				},
-				{
-					"command": "paddock.renameGroup",
-					"when": "webviewId == paddock.projects && webviewSection == group",
-					"group": "1_organize@1"
-				},
-				{
-					"command": "paddock.deleteGroup",
-					"when": "webviewId == paddock.projects && webviewSection == group",
-					"group": "9_remove@1"
-				},
-				{
-					"command": "paddock.renameSession",
-					"when": "webviewId == paddock.projects && webviewSection == session",
-					"group": "1_manage@1"
-				},
-				{
-					"command": "paddock.restartSession",
-					"when": "webviewId == paddock.projects && webviewSection == session",
-					"group": "1_manage@2"
-				},
-				{
-					"command": "paddock.killSession",
-					"when": "webviewId == paddock.projects && webviewSection == session",
-					"group": "9_kill@1"
-				},
-				{
-					"command": "paddock.newWorktree",
-					"when": "webviewId == paddock.projects && webviewSection == project",
-					"group": "0_session@2"
-				},
-				{
-					"command": "paddock.newSession",
-					"when": "webviewId == paddock.projects && webviewSection =~ /^(mainWorktree|worktree)$/",
-					"group": "0_session@1"
-				},
-				{
-					"command": "paddock.removeWorktree",
-					"when": "webviewId == paddock.projects && webviewSection == worktree",
-					"group": "9_remove@1"
-				}
-			]
-		},
-		"configuration": {
-			"title": "Paddock",
-			"properties": {
-				"paddock.herdrPath": {
-					"type": "string",
-					"default": "",
-					"markdownDescription": "Path to the `herdr` binary. Leave empty to look in the usual install locations. VS Code often starts without your shell `PATH`."
-				},
-				"paddock.herdrSession": {
-					"type": "string",
-					"default": "paddock",
-					"markdownDescription": "herdr session Paddock keeps its agents in. Paddock never uses herdr's default session."
-				},
-				"paddock.terminalLocation": {
-					"type": "string",
-					"enum": [
-						"panel",
-						"editor"
-					],
-					"default": "editor",
-					"description": "Where new session terminals open."
-				},
-				"paddock.switchMode": {
-					"type": "string",
-					"enum": [
-						"reload",
-						"swap"
-					],
-					"default": "reload",
-					"markdownDescription": "How clicking a project switches to it. `reload` reopens the folder (VS Code reloads the window). `swap` (experimental) keeps the window as a multi-root workspace with a placeholder folder first and swaps only the project folder, which avoids the reload."
-				}
-			}
-		}
-	},
-	"activationEvents": [],
-	"engines": {
-		"vscode": "^1.140.0"
-	}
+  "name": "paddock",
+  "displayName": "paddock",
+  "version": "0.0.1",
+  "description": "Switch projects in one VS Code window without losing your coding agents",
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "vscode:prepublish": "pnpm run package",
+    "compile": "pnpm run check-types && pnpm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "pnpm run check-types && pnpm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+    "check-types": "tsc --noEmit && tsc -p test/unit/tsconfig.json",
+    "lint": "oxlint src test",
+    "test": "vscode-test",
+    "test:unit": "vitest run",
+    "test:herdr": "vitest run --config vitest.integration.config.mts",
+    "lint:fix": "oxlint --fix src test",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.140.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "esbuild": "^0.28.1",
+    "npm-run-all": "^4.1.5",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "paddock",
+          "title": "Paddock",
+          "icon": "media/paddock.svg"
+        }
+      ]
+    },
+    "views": {
+      "paddock": [
+        {
+          "id": "paddock.projects",
+          "name": "Projects",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "paddock.addProject",
+        "title": "Add Project",
+        "category": "Paddock",
+        "icon": "$(add)"
+      },
+      {
+        "command": "paddock.removeProject",
+        "title": "Remove Project",
+        "category": "Paddock",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "paddock.newGroup",
+        "title": "New Group",
+        "category": "Paddock",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "paddock.renameGroup",
+        "title": "Rename Group",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.deleteGroup",
+        "title": "Delete Group",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.moveToGroup",
+        "title": "Move to Group…",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.openProject",
+        "title": "Open Project",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.newSession",
+        "title": "New Session…",
+        "category": "Paddock",
+        "icon": "$(add)"
+      },
+      {
+        "command": "paddock.openSession",
+        "title": "Open Session",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.renameSession",
+        "title": "Rename Session",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.restartSession",
+        "title": "Restart Session",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.killSession",
+        "title": "Kill Session",
+        "category": "Paddock",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "paddock.openWorktree",
+        "title": "Open Worktree",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.newWorktree",
+        "title": "New Worktree…",
+        "category": "Paddock",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "paddock.removeWorktree",
+        "title": "Remove Worktree…",
+        "category": "Paddock",
+        "icon": "$(trash)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "paddock.addProject",
+          "when": "view == paddock.projects",
+          "group": "navigation@1"
+        },
+        {
+          "command": "paddock.newGroup",
+          "when": "view == paddock.projects",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "paddock.removeProject",
+          "when": "false"
+        },
+        {
+          "command": "paddock.renameGroup",
+          "when": "false"
+        },
+        {
+          "command": "paddock.deleteGroup",
+          "when": "false"
+        },
+        {
+          "command": "paddock.moveToGroup",
+          "when": "false"
+        },
+        {
+          "command": "paddock.openProject",
+          "when": "false"
+        },
+        {
+          "command": "paddock.openSession",
+          "when": "false"
+        },
+        {
+          "command": "paddock.renameSession",
+          "when": "false"
+        },
+        {
+          "command": "paddock.restartSession",
+          "when": "false"
+        },
+        {
+          "command": "paddock.killSession",
+          "when": "false"
+        },
+        {
+          "command": "paddock.openWorktree",
+          "when": "false"
+        },
+        {
+          "command": "paddock.removeWorktree",
+          "when": "false"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "paddock.addProject",
+          "when": "webviewId == paddock.projects && webviewSection == group",
+          "group": "0_add@1"
+        },
+        {
+          "command": "paddock.newSession",
+          "when": "webviewId == paddock.projects && webviewSection == project",
+          "group": "0_session@1"
+        },
+        {
+          "command": "paddock.moveToGroup",
+          "when": "webviewId == paddock.projects && webviewSection == project",
+          "group": "1_organize@1"
+        },
+        {
+          "command": "paddock.removeProject",
+          "when": "webviewId == paddock.projects && webviewSection == project",
+          "group": "9_remove@1"
+        },
+        {
+          "command": "paddock.renameGroup",
+          "when": "webviewId == paddock.projects && webviewSection == group",
+          "group": "1_organize@1"
+        },
+        {
+          "command": "paddock.deleteGroup",
+          "when": "webviewId == paddock.projects && webviewSection == group",
+          "group": "9_remove@1"
+        },
+        {
+          "command": "paddock.renameSession",
+          "when": "webviewId == paddock.projects && webviewSection == session",
+          "group": "1_manage@1"
+        },
+        {
+          "command": "paddock.restartSession",
+          "when": "webviewId == paddock.projects && webviewSection == session",
+          "group": "1_manage@2"
+        },
+        {
+          "command": "paddock.killSession",
+          "when": "webviewId == paddock.projects && webviewSection == session",
+          "group": "9_kill@1"
+        },
+        {
+          "command": "paddock.newWorktree",
+          "when": "webviewId == paddock.projects && webviewSection == project",
+          "group": "0_session@2"
+        },
+        {
+          "command": "paddock.newSession",
+          "when": "webviewId == paddock.projects && webviewSection =~ /^(mainWorktree|worktree)$/",
+          "group": "0_session@1"
+        },
+        {
+          "command": "paddock.removeWorktree",
+          "when": "webviewId == paddock.projects && webviewSection == worktree",
+          "group": "9_remove@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Paddock",
+      "properties": {
+        "paddock.herdrPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to the `herdr` binary. Leave empty to look in the usual install locations. VS Code often starts without your shell `PATH`."
+        },
+        "paddock.herdrSession": {
+          "type": "string",
+          "default": "paddock",
+          "markdownDescription": "herdr session Paddock keeps its agents in. Paddock never uses herdr's default session."
+        },
+        "paddock.terminalLocation": {
+          "type": "string",
+          "enum": [
+            "panel",
+            "editor"
+          ],
+          "default": "editor",
+          "description": "Where new session terminals open."
+        },
+        "paddock.switchMode": {
+          "type": "string",
+          "enum": [
+            "reload",
+            "swap"
+          ],
+          "default": "reload",
+          "markdownDescription": "How clicking a project switches to it. `reload` reopens the folder (VS Code reloads the window). `swap` (experimental) keeps the window as a multi-root workspace with a placeholder folder first and swaps only the project folder, which avoids the reload."
+        }
+      }
+    }
+  },
+  "activationEvents": [],
+  "engines": {
+    "vscode": "^1.140.0"
+  }
 }

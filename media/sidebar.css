@@ -1,568 +1,568 @@
 :root {
-	--indent: 18px;
-	--fg: var(--vscode-sideBar-foreground, var(--vscode-foreground));
-	--dim: var(--vscode-descriptionForeground);
-	--hover: var(--vscode-list-hoverBackground);
-	--border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.35)));
-	--focus: var(--vscode-focusBorder);
-	--run: var(--vscode-charts-green, #3fb950);
-	--wait: var(--vscode-notificationsWarningIcon-foreground, var(--vscode-charts-yellow, #d29922));
-	--done: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #3fb950));
-	--claude: #d97757;
-	--codex: var(--vscode-charts-blue, #4c8dff);
-	--card: color-mix(in srgb, var(--vscode-sideBar-background, #000) 88%, var(--fg));
+  --indent: 18px;
+  --fg: var(--vscode-sideBar-foreground, var(--vscode-foreground));
+  --dim: var(--vscode-descriptionForeground);
+  --hover: var(--vscode-list-hoverBackground);
+  --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.35)));
+  --focus: var(--vscode-focusBorder);
+  --run: var(--vscode-charts-green, #3fb950);
+  --wait: var(--vscode-notificationsWarningIcon-foreground, var(--vscode-charts-yellow, #d29922));
+  --done: var(--vscode-testing-iconPassed, var(--vscode-charts-green, #3fb950));
+  --claude: #d97757;
+  --codex: var(--vscode-charts-blue, #4c8dff);
+  --card: color-mix(in srgb, var(--vscode-sideBar-background, #000) 88%, var(--fg));
 }
 
 * {
-	box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 html,
 body {
-	margin: 0;
-	padding: 0;
-	height: 100%;
+  margin: 0;
+  padding: 0;
+  height: 100%;
 }
 
 body {
-	background: var(--vscode-sideBar-background);
-	color: var(--fg);
-	font-family: var(--vscode-font-family);
-	font-size: var(--vscode-font-size);
-	user-select: none;
+  background: var(--vscode-sideBar-background);
+  color: var(--fg);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  user-select: none;
 }
 
 /* The webview's CSP forbids inline styles, so each nesting level is a rule. */
 [data-level='1'] {
-	--level: 1;
+  --level: 1;
 }
 [data-level='2'] {
-	--level: 2;
+  --level: 2;
 }
 [data-level='3'] {
-	--level: 3;
+  --level: 3;
 }
 [data-level='4'] {
-	--level: 4;
+  --level: 4;
 }
 [data-level='5'] {
-	--level: 5;
+  --level: 5;
 }
 
 .toolbar {
-	position: sticky;
-	top: 0;
-	z-index: 1;
-	display: flex;
-	gap: 4px;
-	margin: 0 -6px 4px;
-	padding: 4px 6px 6px;
-	background: var(--vscode-sideBar-background);
-	border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+  margin: 0 -6px 4px;
+  padding: 4px 6px 6px;
+  background: var(--vscode-sideBar-background);
+  border-bottom: 1px solid var(--border);
 }
 
 .tool {
-	display: inline-flex;
-	flex: 1;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	min-width: 0;
-	padding: 4px 8px;
-	border: 1px solid var(--border);
-	border-radius: 6px;
-	background: none;
-	color: var(--fg);
-	font: inherit;
-	cursor: pointer;
-	white-space: nowrap;
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .tool span {
-	overflow: hidden;
-	text-overflow: ellipsis;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tool:hover {
-	background: var(--hover);
+  background: var(--hover);
 }
 
 .tool:focus-visible {
-	outline: 1px solid var(--focus);
-	outline-offset: -1px;
+  outline: 1px solid var(--focus);
+  outline-offset: -1px;
 }
 
 #root {
-	display: flex;
-	flex-direction: column;
-	min-height: 100%;
-	padding: 4px 6px 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 4px 6px 0;
 }
 
 .ico {
-	width: 16px;
-	height: 16px;
-	flex: none;
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 /* --- rows ------------------------------------------------------------- */
 
 .row {
-	position: relative;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	min-height: 28px;
-	padding: 3px 6px 3px calc(6px + (var(--level) - 1) * var(--indent));
-	border-radius: 6px;
-	cursor: pointer;
-	outline: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 3px 6px 3px calc(6px + (var(--level) - 1) * var(--indent));
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
 }
 
 .row:hover {
-	background: var(--hover);
+  background: var(--hover);
 }
 
 .row:focus-visible {
-	box-shadow: inset 0 0 0 1px var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
 }
 
 .row .name {
-	flex: 0 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .twist {
-	display: inline-flex;
-	width: 14px;
-	margin-right: -4px;
-	color: var(--dim);
+  display: inline-flex;
+  width: 14px;
+  margin-right: -4px;
+  color: var(--dim);
 }
 
 .twist .chev {
-	width: 12px;
-	height: 12px;
-	transition: transform 0.1s ease;
+  width: 12px;
+  height: 12px;
+  transition: transform 0.1s ease;
 }
 
 .row[aria-expanded='true'] > .twist .chev {
-	transform: rotate(90deg);
+  transform: rotate(90deg);
 }
 
 .project {
-	font-weight: 600;
+  font-weight: 600;
 }
 
 /* Groups read as section headers, so top-level projects never look like groups. */
 .group {
-	margin-top: 6px;
-	color: var(--dim);
-	font-size: 0.85em;
-	font-weight: 700;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
+  margin-top: 6px;
+  color: var(--dim);
+  font-size: 0.85em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .toolbar + .group {
-	margin-top: 0;
+  margin-top: 0;
 }
 
 .group .count {
-	font-size: 1em;
-	letter-spacing: 0;
+  font-size: 1em;
+  letter-spacing: 0;
 }
 
 /* A group's projects hang off an indent guide under its chevron. */
 .children {
-	position: relative;
-	margin-bottom: 6px;
+  position: relative;
+  margin-bottom: 6px;
 }
 
 .children::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	left: 12px;
-	border-left: 1px solid var(--border);
-	pointer-events: none;
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 12px;
+  border-left: 1px solid var(--border);
+  pointer-events: none;
 }
 
 .children + .project,
 .group[aria-expanded='false'] + .project {
-	margin-top: 6px;
+  margin-top: 6px;
 }
 
 .group > .ico,
 .project > .ico {
-	color: var(--dim);
+  color: var(--dim);
 }
 
 .project.current > .ico {
-	color: var(--vscode-list-highlightForeground, var(--fg));
+  color: var(--vscode-list-highlightForeground, var(--fg));
 }
 
 .count {
-	color: var(--dim);
-	font-weight: 400;
-	font-size: 0.9em;
+  color: var(--dim);
+  font-weight: 400;
+  font-size: 0.9em;
 }
 
 .hint {
-	padding: 4px 6px 4px calc(26px + (var(--level) - 1) * var(--indent));
-	color: var(--dim);
-	font-style: italic;
-	border-radius: 6px;
+  padding: 4px 6px 4px calc(26px + (var(--level) - 1) * var(--indent));
+  color: var(--dim);
+  font-style: italic;
+  border-radius: 6px;
 }
 
 /* Hover actions, as in the native tree's inline buttons. Zero height so the buttons
    overflow the row instead of growing it when they appear. */
 .actions {
-	display: none;
-	align-items: center;
-	height: 0;
-	margin-left: auto;
-	gap: 2px;
+  display: none;
+  align-items: center;
+  height: 0;
+  margin-left: auto;
+  gap: 2px;
 }
 
 .row:hover > .actions,
 .row:focus-within > .actions {
-	display: inline-flex;
+  display: inline-flex;
 }
 
 .act {
-	display: inline-grid;
-	place-items: center;
-	width: 22px;
-	height: 22px;
-	padding: 0;
-	border: 0;
-	border-radius: 4px;
-	background: none;
-	color: var(--fg);
-	cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
 }
 
 .act:hover {
-	background: var(--vscode-toolbar-hoverBackground, var(--hover));
+  background: var(--vscode-toolbar-hoverBackground, var(--hover));
 }
 
 /* --- badges ------------------------------------------------------------ */
 
 .pill {
-	flex: none;
-	padding: 0 7px;
-	border-radius: 9px;
-	font-size: 0.85em;
-	font-weight: 600;
-	line-height: 18px;
+  flex: none;
+  padding: 0 7px;
+  border-radius: 9px;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 18px;
 }
 
 .pill.waiting {
-	background: color-mix(in srgb, var(--wait) 22%, transparent);
-	color: var(--wait);
+  background: color-mix(in srgb, var(--wait) 22%, transparent);
+  color: var(--wait);
 }
 
 .pill.done {
-	background: color-mix(in srgb, var(--done) 18%, transparent);
-	color: var(--done);
+  background: color-mix(in srgb, var(--done) 18%, transparent);
+  color: var(--done);
 }
 
 .chip {
-	flex: none;
-	margin-left: 8px;
-	padding: 0 7px;
-	border: 1px solid var(--border);
-	border-radius: 5px;
-	color: var(--dim);
-	font-size: 0.85em;
-	line-height: 18px;
+  flex: none;
+  margin-left: 8px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--dim);
+  font-size: 0.85em;
+  line-height: 18px;
 }
 
 .dot {
-	flex: none;
-	align-self: flex-start;
-	width: 8px;
-	height: 8px;
-	margin: 6px 2px 0 4px;
-	border-radius: 50%;
-	background: color-mix(in srgb, var(--dim) 55%, transparent);
+  flex: none;
+  align-self: flex-start;
+  width: 8px;
+  height: 8px;
+  margin: 6px 2px 0 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--dim) 55%, transparent);
 }
 
 .dot.running {
-	background: var(--run);
+  background: var(--run);
 }
 
 .dot.waiting {
-	background: var(--wait);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--wait) 25%, transparent);
+  background: var(--wait);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wait) 25%, transparent);
 }
 
 .dot.done {
-	background: var(--done);
+  background: var(--done);
 }
 
 /* A plain shell has no agent state; the dot fills the status column so rows line up. */
 .dot.shell {
-	align-self: center;
-	margin: 0 auto;
-	background: var(--run);
+  align-self: center;
+  margin: 0 auto;
+  background: var(--run);
 }
 
 .st.done {
-	color: var(--done);
+  color: var(--done);
 }
 
 .st.waiting {
-	color: var(--wait);
+  color: var(--wait);
 }
 
 .st.running {
-	color: var(--run);
+  color: var(--run);
 }
 
 .spin {
-	animation: spin 1s linear infinite;
+  animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-	to {
-		transform: rotate(360deg);
-	}
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.spin {
-		animation: none;
-	}
+  .spin {
+    animation: none;
+  }
 }
 
 /* --- checkouts and sessions ------------------------------------------ */
 
 .card {
-	margin: 2px 0 2px calc((var(--level) - 1) * var(--indent));
-	border: 1px solid transparent;
-	border-radius: 12px;
+  margin: 2px 0 2px calc((var(--level) - 1) * var(--indent));
+  border: 1px solid transparent;
+  border-radius: 12px;
 }
 
 .card.current {
-	padding: 4px 4px 6px;
-	border-color: var(--border);
-	background: var(--card);
+  padding: 4px 4px 6px;
+  border-color: var(--border);
+  background: var(--card);
 }
 
 .card > .row {
-	padding-left: 8px;
+  padding-left: 8px;
 }
 
 .checkout {
-	align-items: flex-start;
-	min-height: 46px;
-	gap: 10px;
+  align-items: flex-start;
+  min-height: 46px;
+  gap: 10px;
 }
 
 .lines {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-	flex: 1 1 auto;
-	gap: 2px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 2px;
 }
 
 .l1 {
-	display: flex;
-	align-items: center;
-	min-width: 0;
-	font-size: 1.08em;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: 1.08em;
 }
 
 .l2 {
-	color: var(--dim);
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .checkout .actions {
-	align-self: center;
+  align-self: center;
 }
 
 /* Collapsed sessions: a boxed strip of agent icons. */
 .card > .row.strip {
-	margin: 2px 4px 2px 26px;
-	padding: 3px 8px 3px 4px;
-	min-height: 30px;
-	border: 1px solid var(--border);
-	border-radius: 8px;
-	background: color-mix(in srgb, var(--vscode-sideBar-background, #000) 60%, transparent);
+  margin: 2px 4px 2px 26px;
+  padding: 3px 8px 3px 4px;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vscode-sideBar-background, #000) 60%, transparent);
 }
 
 /* Expanded sessions: a plain "N agents" header. */
 .card > .row.strip.open {
-	border-color: transparent;
-	background: none;
-	padding-left: 8px;
+  border-color: transparent;
+  background: none;
+  padding-left: 8px;
 }
 
 .card > .row.strip.open:hover {
-	background: var(--hover);
+  background: var(--hover);
 }
 
 .heading {
-	color: var(--dim);
+  color: var(--dim);
 }
 
 .agents {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 2px 6px;
-	border-radius: 6px;
-	background: var(--hover);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--hover);
 }
 
 .agents .more {
-	color: var(--dim);
-	font-size: 0.9em;
+  color: var(--dim);
+  font-size: 0.9em;
 }
 
 .spacer {
-	flex: 1;
+  flex: 1;
 }
 
 .strip > .twist {
-	margin-right: 0;
+  margin-right: 0;
 }
 
 /* The header's chevron points down when open, right when closed. */
 .row.strip[aria-expanded='true'] > .twist .chev {
-	transform: rotate(90deg);
+  transform: rotate(90deg);
 }
 
 .card > .row.session {
-	gap: 6px;
-	min-height: 26px;
-	padding-left: 26px;
+  gap: 6px;
+  min-height: 26px;
+  padding-left: 26px;
 }
 
 .lead {
-	display: inline-flex;
-	width: 16px;
-	flex: none;
+  display: inline-flex;
+  width: 16px;
+  flex: none;
 }
 
 .glyph {
-	display: inline-flex;
+  display: inline-flex;
 }
 
 .agent.claude {
-	color: var(--claude);
+  color: var(--claude);
 }
 
 .agent.codex {
-	color: var(--codex);
+  color: var(--codex);
 }
 
 .agent.shell {
-	color: var(--dim);
+  color: var(--dim);
 }
 
 .agent.letter {
-	display: inline-grid;
-	place-items: center;
-	border-radius: 4px;
-	background: var(--vscode-badge-background);
-	color: var(--vscode-badge-foreground);
-	font-size: 10px;
-	font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .session .name {
-	flex: 1 1 auto;
-	color: var(--dim);
+  flex: 1 1 auto;
+  color: var(--dim);
 }
 
 .session.waiting .name {
-	color: var(--wait);
+  color: var(--wait);
 }
 
 .session.open .name,
 .session:hover .name {
-	color: var(--fg);
+  color: var(--fg);
 }
 
 .row:hover > .pill,
 .row:focus-within > .pill {
-	display: none;
+  display: none;
 }
 
 /* --- drag and drop ---------------------------------------------------- */
 
 .dragging {
-	opacity: 0.5;
+  opacity: 0.5;
 }
 
 .drop-before::before,
 .drop-after::after {
-	content: '';
-	position: absolute;
-	left: 6px;
-	right: 6px;
-	height: 2px;
-	border-radius: 1px;
-	background: var(--focus);
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--focus);
 }
 
 .drop-before::before {
-	top: -1px;
+  top: -1px;
 }
 
 .drop-after::after {
-	bottom: -1px;
+  bottom: -1px;
 }
 
 .drop-into {
-	box-shadow: inset 0 0 0 1px var(--focus);
-	background: var(--vscode-list-dropBackground, var(--hover));
+  box-shadow: inset 0 0 0 1px var(--focus);
+  background: var(--vscode-list-dropBackground, var(--hover));
 }
 
 .tail {
-	flex: 1;
-	min-height: 32px;
-	border-radius: 6px;
+  flex: 1;
+  min-height: 32px;
+  border-radius: 6px;
 }
 
 /* --- empty state ------------------------------------------------------ */
 
 .empty {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 14px;
 }
 
 .empty p {
-	margin: 0 0 4px;
-	color: var(--dim);
+  margin: 0 0 4px;
+  color: var(--dim);
 }
 
 .empty button {
-	padding: 4px 10px;
-	border: 1px solid var(--vscode-button-border, transparent);
-	border-radius: 2px;
-	font: inherit;
-	cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  font: inherit;
+  cursor: pointer;
 }
 
 .empty .primary {
-	background: var(--vscode-button-background);
-	color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
 }
 
 .empty .secondary {
-	background: var(--vscode-button-secondaryBackground);
-	color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
 }

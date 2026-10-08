@@ -1,14 +1,14 @@
 {
-	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"plugins": ["typescript", "unicorn", "oxc", "import", "vitest"],
-	"categories": {
-		"correctness": "error"
-	},
-	"rules": {
-		"curly": "warn",
-		"eqeqeq": "warn",
-		"no-throw-literal": "warn",
-		"unicorn/require-post-message-target-origin": "off"
-	},
-	"ignorePatterns": ["dist", "out", ".vscode-test"]
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "vitest"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "curly": "warn",
+    "eqeqeq": "warn",
+    "no-throw-literal": "warn",
+    "unicorn/require-post-message-target-origin": "off"
+  },
+  "ignorePatterns": ["dist", "out", ".vscode-test"]
 }
