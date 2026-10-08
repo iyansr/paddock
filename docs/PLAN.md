@@ -51,7 +51,7 @@ Everything that must survive a project switch lives in herdr: the agents, their 
 - **Session:** `{ paneId, agentName, projectId, worktreePath, kind, label, location }`, where `location` is `panel` or `editor`. The live list and each agent's state come from `herdr pane list` and `herdr agent list`; Paddock only stores labels and layout.
 - **Pick:** `.paddock/picks/<timestamp>.md` (URL, selector, size, styles, HTML, comment) plus `<timestamp>.png`.
 
-A **Group** is `{ id, name, order, collapsed }`, also in `globalState`. Each project points at one group; new projects land in an Ungrouped group until I move them.
+A **Group** is `{ id, name, order, collapsed }`, also in `globalState`. Each project points at one group; new projects land outside any group, at the top level of the tree, until I move them. Internally that is a hidden Ungrouped group that always exists; the tree never shows it as a header.
 
 ### How Paddock maps onto herdr
 
@@ -79,9 +79,9 @@ Build in this order; M1 alone already replaces Orca's project switching.
 ### M0 Scaffold, groups and ordering
 
 - **Tree with drag and drop.** `window.createTreeView('paddock.projects', { treeDataProvider, dragAndDropController, canSelectMany: true })`. The controller declares the mime type `application/vnd.code.tree.paddock.projects` for both drag and drop.
-- **Drop rules.** VS Code trees drop onto an item, not into a gap, so: a project dropped on a project goes before it, in that project's group; a project dropped on a group goes to the end of that group; a group dropped on a group goes before it.
+- **Drop rules.** VS Code trees drop onto an item, not into a gap, so: a project dropped on a project goes before it, in that project's group (or among the top-level projects); a project dropped on a group goes to the end of that group; a project dropped on empty space goes to the top level; a group dropped on a group goes before it.
 - **Persist.** `handleDrop` rewrites `order` for the affected group (or for all groups) in `globalState`, then fires `onDidChangeTreeData`. `onDidCollapseElement` and `onDidExpandElement` save `collapsed`.
-- **Keyboard path.** Context menu commands New group, Rename group, Delete group (projects move to Ungrouped) and Move to group, since tree drag and drop has no keyboard equivalent.
+- **Keyboard path.** Context menu commands New group, Rename group, Delete group (projects move to the top level), Move to group (with a No group choice) a `+` on each group that adds a project straight into it, and an always-visible "Add project" row at the bottom of the tree for the top level, since tree drag and drop has no keyboard equivalent.
 - **Group badge.** A group's `description` shows its waiting count, read from the same status data as session badges.
 
 ### M1 Sessions

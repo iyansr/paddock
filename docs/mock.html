@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paddock mock</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --page:#e7e7ea; --win:#f8f8f8; --editor:#ffffff; --side:#f8f8f8; --border:#e2e2e2;
+  --text:#3b3b3b; --dim:#767676; --hover:#ececec; --select:#e4e6f1; --accent:#005fb8; --accent-ink:#ffffff;
+  --term:#ffffff; --term-text:#2f2f2f; --status-bg:#005fb8; --status-ink:#ffffff;
+  --run:#005fb8; --wait:#a46a00; --done:#2e7d32; --exit:#8a8a8a;
+  --kw:#0000ff; --str:#a31515; --tag:#800000; --attr:#e50000; --fn:#795e26; --var:#001080; --cm:#008000;
+  --shadow:0 18px 50px rgba(0,0,0,.18);
+  --ui:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#0d0d0f; --win:#181818; --editor:#1f1f1f; --side:#181818; --border:#2b2b2b;
+    --text:#cccccc; --dim:#9d9d9d; --hover:#2a2d2e; --select:#37373d; --accent:#0078d4; --accent-ink:#ffffff;
+    --term:#181818; --term-text:#cccccc; --status-bg:#0078d4; --status-ink:#ffffff;
+    --run:#4daafc; --wait:#e2c08d; --done:#89d185; --exit:#6e6e6e;
+    --kw:#569cd6; --str:#ce9178; --tag:#569cd6; --attr:#9cdcfe; --fn:#dcdcaa; --var:#9cdcfe; --cm:#6a9955;
+    --shadow:0 18px 50px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0d0d0f; --win:#181818; --editor:#1f1f1f; --side:#181818; --border:#2b2b2b;
+  --text:#cccccc; --dim:#9d9d9d; --hover:#2a2d2e; --select:#37373d; --accent:#0078d4; --accent-ink:#ffffff;
+  --term:#181818; --term-text:#cccccc; --status-bg:#0078d4; --status-ink:#ffffff;
+  --run:#4daafc; --wait:#e2c08d; --done:#89d185; --exit:#6e6e6e;
+  --kw:#569cd6; --str:#ce9178; --tag:#569cd6; --attr:#9cdcfe; --fn:#dcdcaa; --var:#9cdcfe; --cm:#6a9955;
+  --shadow:0 18px 50px rgba(0,0,0,.6);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;height:100%;background:var(--page);color:var(--text);font:13px/1.4 var(--ui)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.stage{max-width:1240px;margin:0 auto;padding:20px 16px 32px}
+.hint{margin:0 0 12px;color:var(--dim);max-width:72ch}
+.hint b{color:var(--text);font-weight:600}
+.scroller{overflow-x:auto;border-radius:10px}
+.window{position:relative;min-width:1080px;height:690px;background:var(--win);border:1px solid var(--border);border-radius:10px;display:grid;grid-template-rows:34px 1fr 22px;overflow:hidden}
+
+/* title bar */
+.titlebar{display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--dim)}
+.lights{display:flex;gap:7px}
+.lights i{width:11px;height:11px;border-radius:50%;background:#ff5f57}
+.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.titlebar .title{flex:1;text-align:center;margin-right:40px}
+
+/* body layout */
+.body{display:grid;grid-template-columns:44px 284px 1fr;min-height:0}
+.activity{border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding-top:6px;gap:2px}
+.act{width:44px;height:44px;display:grid;place-items:center;color:var(--dim);position:relative}
+.act svg{width:22px;height:22px}
+.act.on{color:var(--text)}
+.act.on::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:2px;background:var(--accent)}
+.act .dot{position:absolute;right:8px;bottom:9px;min-width:15px;height:15px;border-radius:8px;background:var(--wait);color:#1b1b1b;font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 3px}
+
+/* sidebar */
+.sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;background:var(--side)}
+.side-head{display:flex;align-items:center;height:35px;padding:0 8px 0 16px;font-size:12px;font-weight:600}
+.side-head span{flex:1}
+.icon-btn{width:26px;height:26px;border-radius:5px;display:grid;place-items:center;color:var(--dim)}
+.icon-btn:hover{background:var(--hover);color:var(--text)}
+.icon-btn svg{width:16px;height:16px}
+.tree{overflow:auto;padding-bottom:12px}
+.row{display:flex;align-items:center;gap:6px;height:24px;padding-right:10px;cursor:pointer;white-space:nowrap;width:100%;text-align:left}
+.row:hover{background:var(--hover)}
+.row.sel{background:var(--select)}
+.row .chev{width:16px;color:var(--dim);flex:none;text-align:center;font-size:10px}
+.row .name{flex:1;overflow:hidden;text-overflow:ellipsis}
+.row .meta{color:var(--dim);font-size:11.5px}
+.proj{font-weight:600;cursor:grab}
+.grp{font-size:11.5px;font-weight:600;padding-left:6px;margin-top:6px;cursor:grab}
+.grp .name{color:var(--dim)}
+.row.drop-before{box-shadow:inset 0 2px 0 var(--accent)}
+.row.drop-into{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.row.dragging{opacity:.4}
+.row.empty{cursor:default}
+.proj.current .name::after{content:" (open)";font-weight:400;color:var(--dim)}
+.pill{font-size:10.5px;padding:0 6px;border-radius:8px;line-height:16px;font-weight:600}
+.pill.wait{background:color-mix(in srgb,var(--wait) 22%,transparent);color:var(--wait)}
+.pill.done{background:color-mix(in srgb,var(--done) 20%,transparent);color:var(--done)}
+.sdot{width:8px;height:8px;border-radius:50%;flex:none}
+.sdot.running{background:var(--run);box-shadow:0 0 0 3px color-mix(in srgb,var(--run) 25%,transparent)}
+.sdot.waiting{background:var(--wait)}
+.sdot.done{background:var(--done)}
+.sdot.idle{background:transparent;border:1.5px solid var(--exit)}
+.agent{color:var(--dim)}
+.state.waiting{color:var(--wait)}
+.state.done{color:var(--done)}
+.add-row{color:var(--dim)}
+.side-foot{margin-top:auto;border-top:1px solid var(--border);padding:10px 16px;font-size:11.5px;color:var(--dim)}
+
+/* main area */
+.main{display:grid;grid-template-rows:1fr 168px;min-width:0;min-height:0}
+.groups{display:grid;grid-template-columns:1fr 1fr;min-height:0}
+.group{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--border)}
+.group:last-child{border-right:0}
+.tabs{display:flex;height:35px;background:var(--win);border-bottom:1px solid var(--border);overflow:hidden;flex:none}
+.tab{display:flex;align-items:center;gap:6px;padding:0 12px;border-right:1px solid var(--border);color:var(--dim);font-size:12.5px;white-space:nowrap}
+.tab.on{background:var(--editor);color:var(--text);box-shadow:inset 0 1px 0 var(--accent)}
+.tab svg{width:14px;height:14px}
+.code{flex:1;overflow:auto;background:var(--editor);font:12.5px/20px var(--mono);padding:8px 0;counter-reset:ln}
+.code .l{display:block;padding-left:56px;position:relative;white-space:pre}
+.code .l::before{counter-increment:ln;content:counter(ln);position:absolute;left:0;width:40px;text-align:right;color:var(--exit)}
+.kw{color:var(--kw)}.str{color:var(--str)}.tg{color:var(--tag)}.at{color:var(--attr)}.fn{color:var(--fn)}.vr{color:var(--var)}.cm{color:var(--cm)}
+.hov{position:relative;border-bottom:1px dotted var(--dim);cursor:help}
+.lsp{position:absolute;left:0;bottom:22px;background:var(--win);border:1px solid var(--border);box-shadow:var(--shadow);padding:6px 10px;border-radius:5px;white-space:nowrap;font:12px/1.5 var(--mono);color:var(--text);display:none;z-index:3}
+.lsp small{display:block;font:11.5px/1.4 var(--ui);color:var(--dim)}
+.hov:hover .lsp,.hov.show .lsp{display:block}
+.term{flex:1;overflow:auto;background:var(--term);color:var(--term-text);font:12.5px/19px var(--mono);padding:10px 14px}
+.term p{margin:0;white-space:pre-wrap}
+.term .d{color:var(--dim)}
+.term .ok{color:var(--done)}
+.term .ask{color:var(--wait)}
+.term .me{color:var(--run)}
+.inbox{margin-top:10px;border:1px solid var(--border);border-radius:6px;padding:6px 10px;display:flex;gap:6px;min-height:32px}
+.inbox .typed{color:var(--text)}
+.caret{display:inline-block;width:7px;height:15px;background:var(--term-text);vertical-align:-3px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.term-head{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--dim);padding:0 0 8px;font-family:var(--ui)}
+.term-head .sdot{width:7px;height:7px}
+.panel{border-top:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.ptabs{display:flex;gap:18px;align-items:center;height:32px;padding:0 16px;font-size:11.5px;color:var(--dim);flex:none}
+.ptabs .on{color:var(--text);border-bottom:1px solid var(--accent);padding-bottom:5px;margin-top:6px}
+.panel .term{padding-top:4px}
+
+/* status bar */
+.statusbar{background:var(--status-bg);color:var(--status-ink);display:flex;align-items:center;gap:16px;padding:0 10px;font-size:11.5px}
+.statusbar .sp{flex:1}
+.statusbar button{display:flex;align-items:center;gap:5px}
+
+/* switch overlay */
+.overlay{position:absolute;inset:34px 0 22px 0;background:color-mix(in srgb,var(--win) 88%,transparent);display:none;place-items:center;z-index:20}
+.overlay.on{display:grid}
+.ov-card{text-align:center}
+.ov-card b{display:block;font-size:15px;margin-bottom:4px}
+.ov-card span{color:var(--dim)}
+.bar{width:220px;height:2px;background:var(--border);margin:14px auto 0;overflow:hidden;border-radius:2px}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+.overlay.on .bar i{animation:fill 1.1s ease forwards}
+@keyframes fill{to{width:100%}}
+
+/* toasts */
+.toasts{position:absolute;right:14px;bottom:34px;display:flex;flex-direction:column;gap:8px;z-index:30;width:340px}
+.toast{background:var(--win);border:1px solid var(--border);box-shadow:var(--shadow);border-radius:6px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+.toast .sdot{margin-top:5px}
+.toast p{margin:0;flex:1}
+.toast .acts{display:flex;gap:6px;margin-top:8px}
+.btn{background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:3px 10px;font-size:12px}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+
+/* browser window */
+.browser{position:absolute;top:58px;right:22px;width:600px;height:540px;border-radius:10px;overflow:hidden;background:#fff;color:#1d1d1f;box-shadow:0 24px 70px rgba(0,0,0,.35);border:1px solid rgba(0,0,0,.15);display:none;flex-direction:column;z-index:25}
+.browser.on{display:flex}
+.bchrome{height:40px;background:#ececee;display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid #d6d6d9;font-size:12px;color:#555}
+.bchrome .url{flex:1;background:#fff;border-radius:6px;height:26px;display:flex;align-items:center;padding:0 10px;color:#333;border:1px solid #d9d9dc}
+.bchrome .who{font-size:11.5px;color:#666}
+.bchrome .x{width:22px;height:22px;border-radius:4px;color:#555}
+.bchrome .x:hover{background:#dcdcdf}
+.bpage{position:relative;flex:1;overflow:hidden;background:#f6f5f2;font-family:"Avenir Next",Avenir,"Segoe UI",sans-serif}
+.site-head{position:absolute;left:50%;top:16px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e3e1db;border-radius:999px;height:44px;padding:0 6px 0 18px;width:520px;box-shadow:0 4px 18px rgba(0,0,0,.06)}
+.logo{font-weight:700;letter-spacing:-.02em}
+.snav{display:flex;gap:16px;flex:1;justify-content:center;font-size:13px;color:#444}
+.lang{font-size:12px;border:1px solid #e3e1db;border-radius:999px;padding:4px 9px;color:#444}
+.dl{background:#1d1d1f;color:#fff;border-radius:999px;font-size:12px;font-weight:600;padding:8px 14px}
+.hero{position:absolute;left:48px;right:48px;top:120px}
+.hero h1{font-size:40px;line-height:1.08;margin:0 0 14px;letter-spacing:-.025em;font-weight:700;max-width:12ch}
+.hero p{margin:0 0 20px;color:#555;max-width:40ch;font-size:15px;line-height:1.5}
+.cards{display:flex;gap:12px}
+.card{flex:1;height:86px;border-radius:12px;background:#e9e6df;padding:12px;font-size:12px;color:#555}
+.pk{cursor:default}
+.picking .pk{cursor:crosshair}
+.hl{position:absolute;pointer-events:none;border:2px solid #1a73e8;background:rgba(26,115,232,.12);border-radius:3px;display:none;z-index:5}
+.hl em{position:absolute;left:-2px;top:-24px;background:#1a73e8;color:#fff;font:11px/20px var(--mono);font-style:normal;padding:0 6px;border-radius:3px;white-space:nowrap}
+.dockbar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:#1f1f1f;color:#eee;border-radius:10px;padding:6px;display:flex;align-items:center;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:6;font-family:var(--ui);font-size:12px}
+.dockbar .lbl{padding:0 8px;color:#aaa}
+.dockbar button{background:#0078d4;color:#fff;border-radius:6px;padding:5px 12px;font-weight:600}
+.dockbar button.off{background:#3a3a3a}
+.capture{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);width:400px;background:#fff;border:1px solid #ddd;border-radius:10px;box-shadow:0 12px 36px rgba(0,0,0,.2);padding:12px;display:none;z-index:7;font-family:var(--ui);font-size:12.5px;color:#222}
+.capture.on{display:block}
+.capture .what{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.capture .thumb{width:76px;height:40px;border-radius:6px;background:#f1f1f1;border:1px solid #e3e3e3;display:grid;place-items:center;overflow:hidden}
+.capture code{font:12px var(--mono);background:#f2f2f2;padding:1px 5px;border-radius:4px}
+.capture .sub{color:#666;font-size:11.5px;margin-top:2px}
+.capture input{width:100%;border:1px solid #ccc;border-radius:6px;padding:7px 9px;font:inherit;margin-bottom:10px}
+.capture .row2{display:flex;gap:8px;justify-content:flex-end}
+.capture .ctx{margin:0 0 10px;max-height:150px;overflow:auto;background:#f6f6f7;border:1px solid #e3e3e6;border-radius:6px;padding:8px 10px;font:11px/1.45 var(--mono);color:#333;white-space:pre-wrap}
+.capture .copy{border:1px solid #ccc;border-radius:6px;padding:6px 12px;color:#333;font-weight:600}
+.capture .send{background:#0078d4;color:#fff;border-radius:6px;padding:6px 12px;font-weight:600}
+.capture .cancel{border:1px solid #ccc;border-radius:6px;padding:6px 12px;color:#333}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.overlay.on .bar i{width:100%}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <p class="hint"><b>Paddock mock.</b> Drag projects to reorder them or move them between groups, drag a group header to reorder groups, click a group to collapse it, click another project to switch inside the same window, click a session to focus its terminal, or use the globe button to open the browser and pick an element, then copy its context or send it to an agent. Hover <code>localizeHref</code> in the editor to see LSP still works.</p>
+  <div class="scroller">
+  <div class="window" id="win">
+    <div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><div class="title" id="wtitle"></div></div>
+    <div class="body">
+      <nav class="activity" aria-label="Activity bar">
+        <div class="act" title="Explorer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></div>
+        <div class="act" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg></div>
+        <div class="act" title="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 4-6 3-11 7"/></svg></div>
+        <div class="act on" title="Paddock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><circle cx="7" cy="7" r=".8" fill="currentColor"/><circle cx="7" cy="17" r=".8" fill="currentColor"/></svg><span class="dot" id="actdot">2</span></div>
+      </nav>
+      <aside class="sidebar" aria-label="Paddock">
+        <div class="side-head"><span>Paddock</span>
+          <button class="icon-btn" title="New group" id="newgroup"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M1.5 4.5a1 1 0 0 1 1-1h3.5l1.5 1.5h6a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z"/><path d="M8 7.5v4M6 9.5h4"/></svg></button>
+          <button class="icon-btn" title="Add project" id="addproj"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 3v10M3 8h10"/></svg></button>
+          <button class="icon-btn" title="New session" id="newsess"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="m4 6 2 2-2 2M8 10h4"/></svg></button>
+          <button class="icon-btn" title="Open browser" id="openbrowser"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.2"/><path d="M1.8 8h12.4M8 1.8c2 2 2 10.4 0 12.4M8 1.8c-2 2-2 10.4 0 12.4"/></svg></button>
+        </div>
+        <div class="tree" id="tree" role="tree"></div>
+        <div class="side-foot">Agents run in herdr, so they keep going when you switch projects or close VS Code.</div>
+      </aside>
+      <section class="main">
+        <div class="groups">
+          <div class="group">
+            <div class="tabs"><div class="tab on" id="filetab"></div></div>
+            <div class="code" id="code"></div>
+          </div>
+          <div class="group">
+            <div class="tabs" id="ttabs"></div>
+            <div class="term" id="term"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ptabs"><span>Problems</span><span>Output</span><span class="on" id="ptab">Terminal</span></div>
+          <div class="term" id="pterm"></div>
+        </div>
+      </section>
+    </div>
+    <footer class="statusbar">
+      <button id="sbranch"></button>
+      <button id="sdock"></button>
+      <span class="sp"></span>
+      <span id="slang">TypeScript JSX</span><span>UTF-8</span><span>LF</span>
+    </footer>
+
+    <div class="overlay" id="overlay" aria-live="polite"><div class="ov-card"><b id="ovtitle"></b><span id="ovsub"></span><div class="bar"><i></i></div></div></div>
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <div class="browser" id="browser" role="dialog" aria-label="Chromium window">
+      <div class="bchrome"><div class="lights"><i></i><i></i><i></i></div><div class="url">localhost:3000/id</div><span class="who" id="bwho"></span><button class="x" id="bclose" title="Close browser">✕</button></div>
+      <div class="bpage" id="bpage">
+        <header class="site-head pk" data-sel="header.site-header" data-desc="Site header pill" data-react="SiteHeader">
+          <span class="logo pk" data-sel="a.logo" data-desc="Logo">nodus</span>
+          <nav class="snav pk" data-sel="nav.site-nav" data-desc="Main navigation"><span class="pk" data-sel="nav a[href='/work']">Work</span><span class="pk" data-sel="nav a[href='/services']">Services</span><span class="pk" data-sel="nav a[href='/pricing']">Pricing</span><span class="pk" data-sel="nav a[href='/blog']">Blog</span></nav>
+          <span class="lang pk" data-sel="button.language-switcher">ID ▾</span>
+          <span class="dl pk" data-sel="a.download-button" data-desc="Download button">Download</span>
+        </header>
+        <div class="hero" data-react="Hero">
+          <h1 class="pk" data-sel="section.hero h1">Small studio, shipped products.</h1>
+          <p class="pk" data-sel="section.hero p">We design and build web apps for teams that would rather ship than wait on a roadmap.</p>
+          <div class="cards"><div class="card pk" data-sel="article.case-card:nth-child(1)">Case study: yapp.ink</div><div class="card pk" data-sel="article.case-card:nth-child(2)">Case study: d1-studio</div><div class="card pk" data-sel="article.case-card:nth-child(3)">Case study: TechWithRumi</div></div>
+        </div>
+        <div class="hl" id="hl"><em id="hltag"></em></div>
+        <div class="capture" id="capture">
+          <div class="what"><div class="thumb" id="thumb"></div><div><div><code id="csel"></code></div><div class="sub" id="csub"></div></div></div>
+          <pre class="ctx" id="cctx" aria-label="Browser context"></pre>
+          <input id="ccomment" placeholder="What should change? (optional)" aria-label="Instruction for the agent">
+          <div class="row2"><button class="cancel" id="ccancel">Cancel</button><button class="copy" id="ccopy">Copy</button><button class="send" id="csend"></button></div>
+        </div>
+        <div class="dockbar"><span class="lbl" id="dlbl">Paddock</span><button id="pickbtn">Pick element</button></div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  const projects = {
+    'nodus-studio': {file:'site-header.tsx', lang:'TypeScript JSX', worktrees:[
+      {name:'main', sessions:[
+        {id:'s1', agent:'claude', label:'header polish', state:'running'},
+        {id:'s2', agent:'codex', label:'i18n strings', state:'waiting'},
+        {id:'s3', agent:'shell', label:'dev server', state:'running', panel:true}
+      ]},
+      {name:'feat/pricing-page', sessions:[{id:'s4', agent:'claude', label:'pricing copy', state:'done'}]}
+    ]},
+    'd1-studio': {file:'query-editor.tsx', lang:'TypeScript JSX', worktrees:[
+      {name:'main', sessions:[
+        {id:'d1', agent:'claude', label:'query editor tabs', state:'waiting'},
+        {id:'d2', agent:'shell', label:'wrangler dev', state:'running', panel:true}
+      ]}
+    ]},
+    'yapp': {file:'og-scraper.ts', lang:'TypeScript', worktrees:[
+      {name:'main', sessions:[{id:'y1', agent:'claude', label:'OG scraper retries', state:'done'}]}
+    ]},
+    'TechWithRumi': {file:'script.md', lang:'Markdown', worktrees:[{name:'main', sessions:[]}]},
+    'company-web': {file:'checkout.tsx', lang:'TypeScript JSX', worktrees:[{name:'main', sessions:[{id:'c1', agent:'claude', label:'checkout validation', state:'running'}]}]},
+    'company-api': {file:'orders.go', lang:'Go', worktrees:[{name:'main', sessions:[{id:'c2', agent:'codex', label:'orders endpoint tests', state:'waiting'}]}]}
+  };
+  const groups = [
+    {name:'Personal', open:true, projects:['nodus-studio','d1-studio','yapp','TechWithRumi']},
+    {name:'Company A', open:true, projects:['company-web','company-api']}
+  ];
+
+  const termText = {
+    s1:[['d','╭─ Claude Code  ·  ~/work/nodus-studio'],['me','> make the header more compact and turn the language picker into a dropdown'],['','● Read src/components/site-header.tsx'],['','● Update src/components/site-header.tsx   +6 −5'],['','● Update src/components/language-switcher.tsx   +31 −18'],['ok','✓ tsc passes'],['','I made the header smaller and turned the language picker into a'],['','dropdown. I haven\'t looked at it in a browser yet.']],
+    s2:[['d','>_ Codex  ·  ~/work/nodus-studio'],['me','› add Indonesian strings for the pricing page'],['','• Edited messages/id.json   +42'],['','• Edited messages/en.json   +3'],['ask','Should I also translate the FAQ section? (y/n)']],
+    s3:[['d','$ pnpm dev'],['','  VITE v7.1.4  ready in 612 ms'],['','  ➜  Local:   http://localhost:3000/'],['d','12:22:52 PM [vite] hmr update /src/components/site-header.tsx']],
+    s4:[['d','╭─ Claude Code  ·  ~/work/nodus-studio-pricing'],['me','> rewrite the pricing tiers copy, shorter'],['','● Update src/routes/pricing.tsx   +14 −22'],['ok','✓ Done. Three tiers, one line each.']],
+    d1:[['d','╭─ Claude Code  ·  ~/work/d1-studio'],['me','> add tabs to the query editor so I can keep several queries open'],['','● Update src/editor/query-editor.tsx   +58 −9'],['ask','Allow Bash(pnpm test --filter editor)?  1 Yes   2 No']],
+    d2:[['d','$ pnpm wrangler dev'],['','⎔ Starting local server...'],['','[wrangler:inf] Ready on http://localhost:8787']],
+    c1:[['d','╭─ Claude Code  ·  ~/work/company-web'],['me','> tighten address validation in checkout'],['','● Read src/checkout/validators.ts'],['','● Update src/checkout/validators.ts   +8 −3'],['d','Running focused tests...']],
+    c2:[['d','>_ Codex  ·  ~/work/company-api'],['me','› add tests for the orders endpoint'],['','• Edited internal/orders/handler_test.go   +64'],['ask','Run go test ./internal/orders/... ? (y/n)']],
+    y1:[['d','╭─ Claude Code  ·  ~/work/yapp'],['me','> retry OG fetches that hit the WAF challenge'],['','● Update src/og-scraper.ts   +21 −4'],['ok','✓ Done. Retries twice with a browser user agent.']]
+  };
+
+  const codeHTML = {
+    'nodus-studio': [
+      '<span class="kw">import</span> { <span class="vr">localizeHref</span> } <span class="kw">from</span> <span class="str">"@/lib/i18n"</span>',
+      '<span class="kw">import</span> { <span class="vr">LanguageSwitcher</span> } <span class="kw">from</span> <span class="str">"./language-switcher"</span>',
+      '',
+      '<span class="kw">export function</span> <span class="fn">SiteHeader</span>() {',
+      '  <span class="kw">return</span> (',
+      '    &lt;<span class="tg">header</span> <span class="at">className</span>=<span class="str">"fixed top-4 inset-x-0 z-50"</span>&gt;',
+      '      &lt;<span class="tg">div</span> <span class="at">className</span>=<span class="str">"mx-auto max-w-4xl h-12 rounded-full"</span>&gt;',
+      '        &lt;<span class="tg">nav</span> <span class="at">className</span>=<span class="str">"hidden md:flex gap-4 flex-1"</span>&gt;',
+      '          {<span class="vr">site</span>.<span class="vr">nav</span>.<span class="fn">map</span>((<span class="vr">item</span>) =&gt; (',
+      '            &lt;<span class="tg">a</span> <span class="at">href</span>={<span class="hov" tabindex="0"><span class="fn">localizeHref</span><span class="lsp">function localizeHref(href: string): string<small>Defined in src/lib/i18n.ts · 4 references</small></span></span>(<span class="vr">item</span>.<span class="vr">href</span>)}&gt;',
+      '              {<span class="vr">item</span>.<span class="fn">label</span>()}',
+      '            &lt;/<span class="tg">a</span>&gt;',
+      '          ))}',
+      '        &lt;/<span class="tg">nav</span>&gt;',
+      '        &lt;<span class="tg">LanguageSwitcher</span> /&gt;',
+      '        &lt;<span class="tg">Button</span> <span class="at">className</span>=<span class="str">"h-9 rounded-full px-4"</span>&gt;',
+      '          Download',
+      '        &lt;/<span class="tg">Button</span>&gt;',
+      '      &lt;/<span class="tg">div</span>&gt;',
+      '    &lt;/<span class="tg">header</span>&gt;',
+      '  )',
+      '}'
+    ],
+    'd1-studio': [
+      '<span class="kw">import</span> { <span class="vr">useQueryTabs</span> } <span class="kw">from</span> <span class="str">"./use-query-tabs"</span>',
+      '',
+      '<span class="kw">export function</span> <span class="fn">QueryEditor</span>() {',
+      '  <span class="kw">const</span> { <span class="vr">tabs</span>, <span class="vr">active</span>, <span class="fn">open</span> } = <span class="fn">useQueryTabs</span>()',
+      '  <span class="kw">return</span> &lt;<span class="tg">TabBar</span> <span class="at">tabs</span>={<span class="vr">tabs</span>} <span class="at">active</span>={<span class="vr">active</span>} /&gt;',
+      '}'
+    ],
+    'yapp': [
+      '<span class="kw">export async function</span> <span class="fn">fetchOg</span>(<span class="vr">url</span>: <span class="tg">string</span>) {',
+      '  <span class="kw">for</span> (<span class="kw">let</span> <span class="vr">i</span> = 0; <span class="vr">i</span> &lt; 3; <span class="vr">i</span>++) {',
+      '    <span class="kw">const</span> <span class="vr">res</span> = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="vr">url</span>, { <span class="vr">headers</span>: <span class="fn">uaFor</span>(<span class="vr">i</span>) })',
+      '    <span class="kw">if</span> (<span class="vr">res</span>.<span class="vr">ok</span>) <span class="kw">return</span> <span class="fn">parseOg</span>(<span class="kw">await</span> <span class="vr">res</span>.<span class="fn">text</span>())',
+      '  }',
+      '}'
+    ],
+    'company-web': [
+      '<span class="kw">export function</span> <span class="fn">validateAddress</span>(<span class="vr">values</span>: <span class="tg">AddressValues</span>) {',
+      '  <span class="kw">if</span> (!<span class="vr">values</span>.<span class="vr">country</span>) <span class="kw">return</span> { <span class="vr">ok</span>: <span class="kw">false</span>, <span class="vr">field</span>: <span class="str">"country"</span> }',
+      '  <span class="kw">return</span> <span class="fn">validatePostal</span>(<span class="vr">values</span>)',
+      '}'
+    ],
+    'company-api': [
+      '<span class="kw">func</span> (<span class="vr">h</span> *<span class="tg">Handler</span>) <span class="fn">CreateOrder</span>(<span class="vr">w</span> <span class="tg">http.ResponseWriter</span>, <span class="vr">r</span> *<span class="tg">http.Request</span>) {',
+      '  <span class="vr">order</span>, <span class="vr">err</span> := <span class="fn">decodeOrder</span>(<span class="vr">r</span>.<span class="vr">Body</span>)',
+      '  <span class="kw">if</span> <span class="vr">err</span> != <span class="kw">nil</span> { <span class="fn">badRequest</span>(<span class="vr">w</span>, <span class="vr">err</span>); <span class="kw">return</span> }',
+      '}'
+    ],
+    'TechWithRumi': [
+      '# Rumi explains: how HTTP caching works',
+      '',
+      '[happy] Hi, I\'m Rumi! Today: why your browser',
+      'sometimes never asks the server at all.'
+    ]
+  };
+
+  const state = {project:'nodus-studio', focus:'s1', target:'s1'};
+  const typed = {};
+
+  const allSessions = p => projects[p].worktrees.flatMap(w => w.sessions.map(s => Object.assign({worktree:w.name}, s)));
+  const findSession = id => { for (const p in projects) { const s = allSessions(p).find(x => x.id === id); if (s) return {project:p, s}; } return null; };
+  const waitingCount = p => allSessions(p).filter(s => s.state === 'waiting').length;
+  const doneCount = p => allSessions(p).filter(s => s.state === 'done').length;
+  const stateWord = s => s.state === 'waiting' ? 'waiting' : s.state === 'done' ? 'done' : s.state === 'running' ? 'running' : 'idle';
+
+  function renderTree(){
+    let h = '';
+    groups.forEach((g, gi) => {
+      const gw = g.projects.reduce((n, p) => n + waitingCount(p), 0);
+      h += `<div class="row grp" draggable="true" data-group="${gi}" role="treeitem" aria-expanded="${g.open}" tabindex="0"><span class="chev">${g.open ? '▾' : '▸'}</span><span class="name">${esc(g.name)}</span>${!g.open && gw ? `<span class="pill wait">${gw} waiting</span>` : `<span class="meta">${g.projects.length}</span>`}</div>`;
+      if (!g.open) return;
+      if (!g.projects.length) h += `<div class="row empty" data-group-drop="${gi}" style="padding-left:30px"><span class="name meta">Drag projects here</span></div>`;
+      for (const p of g.projects) h += projectRows(p, gi);
+    });
+    $('tree').innerHTML = h;
+    const total = Object.keys(projects).reduce((n, p) => n + waitingCount(p), 0);
+    $('actdot').textContent = total; $('actdot').style.display = total ? 'grid' : 'none';
+  }
+  function projectRows(p, gi){
+    let h = '';
+    {
+      const cur = p === state.project, w = waitingCount(p), d = doneCount(p);
+      const badge = w ? `<span class="pill wait">${w} waiting</span>` : d ? `<span class="pill done">${d} done</span>` : '';
+      h += `<button class="row proj${cur ? ' current' : ''}" data-proj="${esc(p)}" data-gi="${gi}" draggable="true" role="treeitem" aria-expanded="${cur}" style="padding-left:14px"><span class="chev">${cur ? '▾' : '▸'}</span><span class="name">${esc(p)}</span>${badge}</button>`;
+      if (!cur) return h;
+      for (const wt of projects[p].worktrees) {
+        h += `<div class="row" style="padding-left:22px" role="treeitem"><span class="chev">▾</span><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" style="color:var(--dim)"><circle cx="4" cy="3.5" r="1.6"/><circle cx="4" cy="12.5" r="1.6"/><circle cx="12" cy="6" r="1.6"/><path d="M4 5v6M12 7.6c0 3-5 2.5-8 3.4"/></svg><span class="name">${esc(wt.name)}</span><span class="meta">${wt.sessions.length} session${wt.sessions.length === 1 ? '' : 's'}</span></div>`;
+        for (const s of wt.sessions) {
+          h += `<button class="row${s.id === state.focus ? ' sel' : ''}" data-sess="${s.id}" role="treeitem" style="padding-left:42px"><span class="sdot ${s.state}"></span><span class="name"><span class="agent">${esc(s.agent)}</span> · ${esc(s.label)}</span><span class="meta state ${s.state}">${stateWord(s)}</span></button>`;
+        }
+        h += `<button class="row add-row" data-new="${esc(wt.name)}" style="padding-left:42px"><span class="chev">+</span><span class="name">New session</span></button>`;
+      }
+      h += `<button class="row add-row" data-newwt="1" style="padding-left:22px"><span class="chev">+</span><span class="name">New worktree</span></button>`;
+    }
+    return h;
+  }
+
+  function termBody(id){
+    const lines = (termText[id] || [['d','$ ']]).map(([c, t]) => `<p class="${c}">${esc(t)}</p>`).join('');
+    return lines;
+  }
+
+  function renderEditors(){
+    const p = projects[state.project];
+    const editorSessions = allSessions(state.project).filter(s => !s.panel);
+    if (!editorSessions.find(s => s.id === state.focus)) state.focus = editorSessions.length ? editorSessions[0].id : null;
+    $('wtitle').textContent = `${p.file} — ${state.project}`;
+    $('filetab').innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9.5 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5z"/><path d="M9.5 1.5V5H13"/></svg>${esc(p.file)}`;
+    $('code').innerHTML = codeHTML[state.project].map(l => `<span class="l">${l || ' '}</span>`).join('');
+    $('ttabs').innerHTML = editorSessions.length ? editorSessions.map(s => `<button class="tab${s.id === state.focus ? ' on' : ''}" data-sess="${s.id}"><span class="sdot ${s.state}" style="width:7px;height:7px"></span>${esc(s.agent)} · ${esc(s.label)}</button>`).join('') : '<div class="tab on">No sessions</div>';
+    if (state.focus) {
+      const s = editorSessions.find(x => x.id === state.focus);
+      $('term').innerHTML = `<div class="term-head"><span class="sdot ${s.state}"></span>herdr pane ${esc(state.project.toLowerCase().slice(0, 5))}-${esc(s.id)} · live stream</div>` + termBody(s.id) + `<div class="inbox"><span>&gt;</span><span class="typed" id="typed">${esc(typed[s.id] || '')}</span><span class="caret"></span></div>`;
+    } else {
+      $('term').innerHTML = '<p class="d">No agent sessions in this project yet. Use New session in the sidebar to start Claude Code, Codex or a shell.</p>';
+    }
+    const ps = allSessions(state.project).find(s => s.panel);
+    $('ptab').textContent = ps ? `Terminal: ${ps.label}` : 'Terminal';
+    $('pterm').innerHTML = ps ? termBody(ps.id) : '<p class="d">$ </p>';
+    $('slang').textContent = p.lang;
+    $('sbranch').innerHTML = `⎇ ${esc(p.worktrees[0].name)}`;
+    const n = allSessions(state.project).length, w = waitingCount(state.project);
+    $('sdock').textContent = `Paddock: ${n} session${n === 1 ? '' : 's'}${w ? `, ${w} waiting` : ''}`;
+  }
+
+  function render(){ renderTree(); renderEditors(); }
+
+  function toast(html, opts){
+    opts = opts || {};
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.innerHTML = `<span class="sdot ${opts.dot || 'running'}"></span><p>${html}${opts.action ? `<span class="acts"><button class="btn">${esc(opts.action)}</button><button class="btn ghost">Dismiss</button></span>` : ''}</p>`;
+    $('toasts').appendChild(t);
+    const kill = () => t.remove();
+    if (opts.action) {
+      t.querySelector('.btn').onclick = () => { kill(); opts.onAction(); };
+      t.querySelector('.btn.ghost').onclick = kill;
+    } else setTimeout(kill, opts.ms || 3800);
+  }
+
+  let switching = false;
+  function switchProject(p, then){
+    if (p === state.project) { if (then) then(); return; }
+    if (switching) return;
+    switching = true;
+    closeBrowser();
+    const n = allSessions(p).length;
+    $('ovtitle').textContent = `Reopening ${p}`;
+    $('ovsub').textContent = n ? `Same window. ${n} herdr pane${n === 1 ? '' : 's'} will reattach.` : 'Same window. No sessions to reattach.';
+    $('overlay').classList.add('on');
+    setTimeout(() => {
+      state.project = p; state.focus = null;
+      render();
+      $('overlay').classList.remove('on');
+      switching = false;
+      if (n) toast(`Reattached ${n} session${n === 1 ? '' : 's'} in <b>${esc(p)}</b>. Agents kept running while the window reloaded.`, {dot:'done'});
+      if (then) then();
+    }, 1150);
+  }
+
+  function focusSession(id){
+    const f = findSession(id); if (!f) return;
+    switchProject(f.project, () => {
+      if (f.s.panel) { $('pterm').scrollIntoView({block:'nearest'}); return; }
+      state.focus = id; state.target = id; render();
+    });
+  }
+
+  $('tree').addEventListener('click', e => {
+    const gr = e.target.closest('[data-group]'); if (gr) { const g = groups[+gr.dataset.group]; g.open = !g.open; renderTree(); return; }
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.proj) switchProject(b.dataset.proj);
+    else if (b.dataset.sess) focusSession(b.dataset.sess);
+    else if (b.dataset.new) toast(`New session in <b>${esc(b.dataset.new)}</b>: pick Claude Code, Codex or a shell. It starts in its own herdr pane.`);
+    else if (b.dataset.newwt) toast('New worktree: enter a branch name and Paddock runs <code>herdr worktree create</code>.');
+  });
+  $('ttabs').addEventListener('click', e => { const b = e.target.closest('[data-sess]'); if (b) { state.focus = b.dataset.sess; state.target = b.dataset.sess; render(); } });
+  $('addproj').onclick = () => toast('Add project: choose a folder. It appears here in every window.');
+  $('newsess').onclick = () => toast(`New session in <b>${esc(state.project)}</b>: pick Claude Code, Codex or a shell.`);
+
+  /* groups: drag and drop */
+  const tree = $('tree');
+  let drag = null;
+  const clearMarks = all => tree.querySelectorAll(all ? '.drop-before,.drop-into,.dragging' : '.drop-before,.drop-into').forEach(el => el.classList.remove('drop-before', 'drop-into', 'dragging'));
+  const dropTarget = e => e.target.closest('[data-proj],[data-group],[data-group-drop]');
+  tree.addEventListener('dragstart', e => {
+    const p = e.target.closest('[data-proj]'), g = e.target.closest('[data-group]');
+    if (p) drag = {kind:'proj', id:p.dataset.proj};
+    else if (g) drag = {kind:'group', gi:+g.dataset.group};
+    else return;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', 'dock');
+    (p || g).classList.add('dragging');
+  });
+  tree.addEventListener('dragover', e => {
+    if (!drag) return;
+    const t = dropTarget(e); if (!t) return;
+    if (drag.kind === 'group' && t.dataset.group === undefined) return;
+    e.preventDefault();
+    clearMarks(false);
+    t.classList.add(t.dataset.proj || drag.kind === 'group' ? 'drop-before' : 'drop-into');
+  });
+  tree.addEventListener('dragleave', e => { if (!tree.contains(e.relatedTarget)) clearMarks(false); });
+  tree.addEventListener('dragend', () => { drag = null; clearMarks(true); });
+  tree.addEventListener('drop', e => {
+    if (!drag) return;
+    const t = dropTarget(e); if (!t) return;
+    e.preventDefault();
+    if (drag.kind === 'group') {
+      const to = +t.dataset.group;
+      if (to !== drag.gi) { const [g] = groups.splice(drag.gi, 1); groups.splice(to > drag.gi ? to - 1 : to, 0, g); }
+    } else if (t.dataset.proj !== drag.id) {
+      const from = groups.find(g => g.projects.includes(drag.id));
+      from.projects.splice(from.projects.indexOf(drag.id), 1);
+      if (t.dataset.proj) { const g = groups[+t.dataset.gi]; g.projects.splice(g.projects.indexOf(t.dataset.proj), 0, drag.id); }
+      else { const g = groups[+(t.dataset.group !== undefined ? t.dataset.group : t.dataset.groupDrop)]; g.projects.push(drag.id); g.open = true; }
+    }
+    drag = null; renderTree();
+  });
+  tree.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.group !== undefined) e.target.click(); });
+  $('newgroup').onclick = () => { groups.push({name:`Group ${groups.length + 1}`, open:true, projects:[]}); renderTree(); toast('Added a group. Drag projects into it; in the real extension you rename it from the context menu.'); };
+
+  /* browser + picker */
+  const browser = $('browser'), page = $('bpage'), hl = $('hl');
+  let picking = false, picked = null;
+  function targetLabel(){ const f = findSession(state.target); return f ? `${f.s.agent} · ${f.s.label}` : 'agent'; }
+  function openBrowser(){
+    if (state.project !== 'nodus-studio') { toast(`Browser opens at the URL set for <b>${esc(state.project)}</b>. This mock only has the nodus-studio site, so switching back.`); switchProject('nodus-studio', openBrowser); return; }
+    browser.classList.add('on');
+    $('bwho').textContent = `sends to ${targetLabel()}`;
+    setPicking(false); $('capture').classList.remove('on');
+  }
+  function closeBrowser(){ browser.classList.remove('on'); setPicking(false); $('capture').classList.remove('on'); }
+  function setPicking(on){
+    picking = on; page.classList.toggle('picking', on);
+    $('pickbtn').textContent = on ? 'Cancel pick' : 'Pick element';
+    $('pickbtn').classList.toggle('off', on);
+    $('dlbl').textContent = on ? 'Click an element. Esc cancels.' : 'Paddock';
+    if (!on && !picked) hl.style.display = 'none';
+  }
+  const lastSeg = el => el.dataset.sel.split(/[\s>]+/).pop();
+  const tagOf = el => { const m = lastSeg(el).match(/^[a-z0-9]+/i); return m ? m[0] : el.tagName.toLowerCase(); };
+  const clsOf = el => (lastSeg(el).match(/\.[\w-]+/g) || []).map(c => c.slice(1)).join(' ');
+  const squish = s => s.replace(/\s+/g, ' ').trim();
+  function buildContext(el, r){
+    const tag = tagOf(el), text = squish(el.textContent), cls = clsOf(el), cs = getComputedStyle(el);
+    const near = [...el.parentElement.children].filter(c => c !== el && c.classList.contains('pk')).slice(0, 3).map(c => '- ' + squish(c.textContent).slice(0, 110));
+    const anc = [];
+    for (let p = el.parentElement; p && p !== page; p = p.parentElement) anc.push(p.dataset && p.dataset.sel ? tagOf(p) : p.tagName.toLowerCase());
+    anc.push('body');
+    const rc = el.closest('[data-react]');
+    const html = `<${tag}${cls ? ` class="${cls}"` : ''}>${text.length > 80 ? text.slice(0, 80) + '…' : text}</${tag}>`;
+    const L = ['Attached browser context from http://localhost:3000/id', '', 'Selected element:', tag, `Role: ${tag}`, `Selector: ${el.dataset.sel}`];
+    if (rc) L.push(`React: <${rc.dataset.react}>`);
+    L.push(`Dimensions: ${Math.round(r.width)}x${Math.round(r.height)}`, `Screenshot: .paddock/picks/20261008-1342-${tag}.png`, '', 'Text content:', text.slice(0, 200));
+    if (near.length) L.push('', 'Nearby context:', ...near);
+    const down = [...anc].reverse().slice(1);
+    L.push('', 'Computed styles:', `  display: ${cs.display}`, `  font-size: ${cs.fontSize}`, `  color: ${cs.color}`, '', 'HTML:', html, '', `Ancestor path: ${anc.join(' > ')}`, `Full DOM path: body > ${down.length ? down.join(' > ') + ' > ' : ''}${lastSeg(el)}`);
+    return L.join('\n');
+  }
+  function place(el){
+    const pr = page.getBoundingClientRect(), r = el.getBoundingClientRect();
+    hl.style.display = 'block';
+    hl.style.left = (r.left - pr.left - 2) + 'px'; hl.style.top = (r.top - pr.top - 2) + 'px';
+    hl.style.width = (r.width + 4) + 'px'; hl.style.height = (r.height + 4) + 'px';
+    $('hltag').textContent = `${tagOf(el)} "${squish(el.textContent).slice(0, 28)}" ${Math.round(r.width)}x${Math.round(r.height)}`;
+    return r;
+  }
+  $('openbrowser').onclick = openBrowser;
+  $('bclose').onclick = closeBrowser;
+  $('pickbtn').onclick = () => { picked = null; $('capture').classList.remove('on'); setPicking(!picking); };
+  page.addEventListener('mousemove', e => { if (!picking) return; const el = e.target.closest('.pk'); if (el) place(el); });
+  page.addEventListener('click', e => {
+    if (!picking) return;
+    const el = e.target.closest('.pk'); if (!el) return;
+    e.preventDefault();
+    const r = place(el);
+    picked = {sel: el.dataset.sel, w: Math.round(r.width), h: Math.round(r.height), text: el.textContent.trim().slice(0, 24)};
+    setPicking(false);
+    $('csel').textContent = picked.sel;
+    $('csub').textContent = `${picked.w}×${picked.h} px. HTML, styles and a cropped screenshot saved.`;
+    $('thumb').innerHTML = `<span style="font-size:10px;padding:2px 6px;border-radius:999px;background:#1d1d1f;color:#fff;max-width:70px;overflow:hidden;white-space:nowrap">${esc(picked.text || 'element')}</span>`;
+    $('csend').textContent = `Send to ${targetLabel()}`;
+    $('ccomment').value = '';
+    picked.el = el;
+    picked.ctx = buildContext(el, r);
+    $('cctx').textContent = picked.ctx;
+    $('capture').classList.add('on');
+    $('ccomment').focus();
+  });
+  $('ccancel').onclick = () => { picked = null; $('capture').classList.remove('on'); hl.style.display = 'none'; };
+  $('ccopy').onclick = async () => {
+    if (!picked) return;
+    const instr = $('ccomment').value.trim();
+    const text = picked.ctx + (instr ? `\n\nInstruction: ${instr}` : '');
+    let ok = true;
+    try { await navigator.clipboard.writeText(text); } catch (err) { ok = false; }
+    toast(ok ? `Copied browser context for <b>${esc(tagOf(picked.el))}</b> to the clipboard.` : 'The clipboard is blocked in this preview. In Paddock, Copy goes through VS Code\'s clipboard API.', {dot: ok ? 'done' : 'waiting'});
+    picked = null; $('capture').classList.remove('on'); hl.style.display = 'none';
+  };
+  $('csend').onclick = () => {
+    if (!picked) return;
+    const slug = picked.sel.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 28);
+    const text = `@.paddock/picks/1342-${slug}.md ${$('ccomment').value.trim()}`.trim() + ' ';
+    const id = state.target;
+    closeBrowser(); picked = null; hl.style.display = 'none';
+    focusSession(id);
+    typed[id] = '';
+    let i = 0;
+    const step = () => {
+      typed[id] = text.slice(0, ++i);
+      const t = $('typed'); if (t && state.focus === id) t.textContent = typed[id];
+      if (i < text.length) setTimeout(step, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 14);
+      else toast(`Added the pick to <b>${esc(targetLabel())}</b>. Finish the prompt and press Enter in the terminal.`, {dot:'done'});
+    };
+    setTimeout(step, 120);
+  };
+  $('ccomment').addEventListener('keydown', e => { if (e.key === 'Enter') $('csend').click(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (picking) setPicking(false);
+    else if ($('capture').classList.contains('on')) $('ccancel').click();
+  });
+
+  render();
+  setTimeout(() => toast('<b>codex · i18n strings</b> is waiting for your input.', {dot:'waiting', action:'Go to session', onAction: () => focusSession('s2')}), 1400);
+})();
+</script>
+</body>
+</html>

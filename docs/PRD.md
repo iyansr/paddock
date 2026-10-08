@@ -36,7 +36,7 @@ All requirements below are in scope for v1; later work is listed at the end.
 
 ### Sidebar and sessions
 
-- **R1 Projects and groups.** A Paddock view in its own activity bar container lists projects I add by folder, inside groups I name (for example Personal and Company A). Drag and drop reorders projects, moves them between groups and reorders the groups; "Move to group" in the context menu does the same from the keyboard. A collapsed group shows how many of its sessions are waiting. Groups and order are stored globally, so every window sees them.
+- **R1 Projects and groups.** A Paddock view in its own activity bar container lists projects I add by folder. Projects can sit at the top level or inside groups I name (for example Personal and Company A); a `+` on each group adds a project straight into it, and an "Add project" row at the bottom of the tree adds one at the top level. Drag and drop reorders projects, moves them between groups (or out to the top level) and reorders the groups; "Move to group" in the context menu does the same from the keyboard. A collapsed group shows how many of its sessions are waiting. Groups and order are stored globally, so every window sees them.
 - **R2 Worktrees.** Each project expands to its git worktrees (`herdr worktree list`). I can create a worktree from a branch name and remove one.
 - **R3 Sessions.** Each worktree expands to its agent sessions. "New session" asks for an agent preset (Claude Code, Codex, plain shell) and starts it in its own herdr pane.
 - **R4 Switch project.** Clicking a project or worktree that isn't open reopens that folder in the same window. Its sessions reattach automatically after the reload.
