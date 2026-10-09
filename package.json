@@ -15,7 +15,18 @@
     "terminal",
     "worktree"
   ],
+  "homepage": "https://github.com/iyansr/paddock#readme",
+  "bugs": {
+    "url": "https://github.com/iyansr/paddock/issues"
+  },
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iyansr/paddock"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/iyansr"
+  },
   "publisher": "iyansr",
   "main": "./dist/extension.js",
   "scripts": {

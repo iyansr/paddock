@@ -167,7 +167,7 @@ Instruction: make this heading smaller on mobile
 - **Publisher.** The publisher is `iyansr`, so the extension id is `iyansr.paddock`; `argv.json`, `.vscode/launch.json` and `.vscode-test.mjs` name it for the browser API. globalState is keyed by extension id, so projects and groups saved under `undefined_publisher.paddock` do not carry over and are added again once.
 - **herdr check.** On activation Paddock checks `herdr --version` (0.9.3 or later) and offers `curl -fsSL https://herdr.dev/install.sh | sh` in a terminal when herdr is missing or older. It then reads `protocol` from `herdr api schema --json` and warns once per protocol number when it differs from the one Paddock was tested with (22, herdr 0.9.3).
 - **README** covering requirements, the `argv.json` line, settings and known issues. The GIF of switching and picking is still to be recorded.
-- **Package.** `pnpm --allow-build=@vscode/vsce-sign dlx @vscode/vsce package --no-dependencies --allow-missing-repository` builds `paddock-<version>.vsix`. The licence is Apache 2.0.
+- **Package.** `pnpm --allow-build=@vscode/vsce-sign dlx @vscode/vsce package --no-dependencies` builds `paddock-<version>.vsix`. The licence is Apache 2.0.
 
 ## Testing and release
 
