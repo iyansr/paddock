@@ -64,3 +64,7 @@ pnpm run watch          # then press F5 for the Extension Development Host
 pnpm run test:unit
 pnpm dlx @vscode/vsce package --no-dependencies
 ```
+
+## License
+
+Apache License 2.0. See the `LICENSE` file.
