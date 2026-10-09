@@ -30,6 +30,8 @@ export interface SessionRow {
   state: RowState;
   /** Open as a terminal in this window. */
   open: boolean;
+  /** Its terminal is the active terminal tab. */
+  active: boolean;
 }
 
 export interface CheckoutRow {
@@ -83,6 +85,7 @@ export interface SessionSource {
   kind?: string;
   status: SessionState;
   open: boolean;
+  active: boolean;
 }
 
 export interface ModelSource {
@@ -113,6 +116,7 @@ export function buildModel(src: ModelSource): ViewModel {
       // herdr reports a shell as running whatever it does, so it never drives a badge.
       state: s.kind ? s.status : 'idle',
       open: s.open,
+      active: s.active,
     }));
 
   const projectRow = (project: Project): ProjectRow => {

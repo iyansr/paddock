@@ -288,8 +288,8 @@ const TITLE: Record<RowState, string> = { done: 'Done', waiting: 'Waiting', runn
 
 function renderSession(s: SessionRow, level: number, parent: string): string {
   const label = `${TITLE[s.state]} - ${s.name}`;
-  const title = `${s.name}, ${s.kind ?? 'shell'}${s.kind ? `, ${s.state}` : ''}${s.open ? ', open' : ''}`;
-  return `<div ${rowAttrs({ key: nodeKey(s.node), node: s.node, section: 'session', level, parent, cls: `session ${s.state}${s.open ? ' open' : ''}`, label: title, title })}>
+  const title = `${s.name}, ${s.kind ?? 'shell'}${s.kind ? `, ${s.state}` : ''}${s.active ? ', active' : s.open ? ', open' : ''}`;
+  return `<div ${rowAttrs({ key: nodeKey(s.node), node: s.node, section: 'session', level, parent, cls: `session ${s.state}${s.open ? ' open' : ''}${s.active ? ' active' : ''}`, label: title, title, extra: s.active ? 'aria-current="true"' : undefined })}>
 		<span class="lead">${s.kind ? stateIcon[s.state] : shellDot}</span><span class="glyph">${agentGlyph(s.kind)}</span><span class="name">${esc(label)}</span>
 		<span class="actions">${menuButton}</span></div>`;
 }

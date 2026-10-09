@@ -47,15 +47,16 @@ All requirements below are in scope for v1; later work is listed at the end.
 ### Terminals
 
 - **R8 Terminals live in VS Code.** Each session opens as a VS Code terminal that streams its herdr pane, either in the bottom panel or as an editor tab next to code (a setting, overridable per session).
-- **R9 Restore layout.** After a reload, sessions reopen where they were: panel or editor tab.
+- **R9 Restore layout.** After a reload, sessions reopen where they were: panel or editor tab, and an editor tab in its own editor group, so split layouts come back.
 - **R10 No prefix keys.** Paddock draws the pane through VS Code's own terminal, so scrolling, search and shortcuts work as usual and there is no multiplexer prefix to learn.
 - **R11 Survive VS Code.** Closing a terminal tab detaches instead of killing the agent. Quitting VS Code leaves agents running.
+- **R19 Split terminals.** A session terminal's top row is a small toolbar with Split Right, Split Down and Kill (×) buttons, shown while that terminal is focused. Split offers a new session or one of the project's sessions not open yet, and opens it beside that terminal. In the panel, splits sit side by side only. Panel splits are not restored after a reload; editor splits are (R9).
 
 ### Element picker
 
-- **R12 Open browser.** One "Open Browser" button opens an empty tab of VS Code's own integrated browser in the current editor group, next to my other tabs; I type the URL. No separate window, no debugger, and scrolling and typing feel like any browser.
 > On the roadmap: R12 to R18 are built but switched off until VS Code's `browser` API is stable, since the Marketplace does not take extensions that use proposed APIs.
 
+- **R12 Open browser.** One "Open Browser" button opens an empty tab of VS Code's own integrated browser in the current editor group, next to my other tabs; I type the URL. No separate window, no debugger, and scrolling and typing feel like any browser.
 - **R13 Pick mode.** A small Pick button sits in the corner of every page (VS Code does not let extensions add buttons to the browser's own toolbar); a keyboard shortcut does the same. Pick mode highlights the element under the mouse with a label of its tag, role, text and size. Clicking selects it without the page seeing the click; C copies the hovered element straight away; Esc cancels.
 - **R14 Capture.** A pick captures the page URL, tag and role, a CSS selector, the nearest React component, size, text content, nearby text, key computed styles, trimmed outer HTML, the ancestor and full DOM paths, and a cropped screenshot. It's written as plain text in a fixed layout, so any agent can read it.
 - **R15 Optional comment.** After picking, I can type a short instruction that is saved with the pick.

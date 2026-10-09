@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/frames';
+import { encodeCommand, LineSplitter, parseStreamLine, translateInput, WHEEL_LINES } from '../../src/herdr/frames';
 import { AGENT_NAME, displayName, nextAgentName } from '../../src/herdr/names';
 import {
   HerdrError,
@@ -22,7 +22,7 @@ import {
   waitingByWorkspace,
   type StatusEntry,
 } from '../../src/herdr/status';
-import { remove, restorable, upsert, type OpenSession } from '../../src/layout';
+import { remove, restorable, upsert, withColumns, type OpenSession } from '../../src/layout';
 
 // Captured from herdr 0.9.3.
 const PANE = {
@@ -239,6 +239,28 @@ describe('stream protocol', () => {
     expect(encodeCommand({ type: 'terminal.input', text: 'ls\r' })).toBe('{"type":"terminal.input","text":"ls\\r"}\n');
     expect(encodeCommand({ type: 'terminal.release' })).toBe('{"type":"terminal.release"}\n');
   });
+  it('passes typed input through', () => {
+    expect(translateInput('ls\r')).toEqual([{ type: 'terminal.input', text: 'ls\r' }]);
+    expect(translateInput('\x1b[A')).toEqual([{ type: 'terminal.input', text: '\x1b[A' }]);
+  });
+  it('turns wheel reports into scrolls and merges repeats', () => {
+    expect(translateInput('\x1b[<64;10;5M')).toEqual([
+      { type: 'terminal.scroll', direction: 'up', lines: WHEEL_LINES },
+    ]);
+    expect(translateInput('\x1b[<65;1;1M\x1b[<65;1;2M')).toEqual([
+      { type: 'terminal.scroll', direction: 'down', lines: 2 * WHEEL_LINES },
+    ]);
+    // Ctrl/Shift/Alt bits still mean wheel.
+    expect(translateInput('\x1b[<80;1;1M')).toEqual([{ type: 'terminal.scroll', direction: 'up', lines: WHEEL_LINES }]);
+  });
+  it('drops clicks and keeps surrounding text in order', () => {
+    expect(translateInput('\x1b[<0;3;4M\x1b[<0;3;4m')).toEqual([]);
+    expect(translateInput('a\x1b[<64;1;1Mb\x1b[<0;1;1Mc')).toEqual([
+      { type: 'terminal.input', text: 'a' },
+      { type: 'terminal.scroll', direction: 'up', lines: WHEEL_LINES },
+      { type: 'terminal.input', text: 'bc' },
+    ]);
+  });
 });
 
 describe('layout', () => {
@@ -258,6 +280,11 @@ describe('layout', () => {
         ],
       ),
     ).toEqual([a]);
+  });
+  it('records editor groups, reporting no change when nothing moved', () => {
+    expect(withColumns([a, b], new Map([['w1:p2', 2]]))).toEqual([a, { ...b, column: 2 }]);
+    expect(withColumns([a, { ...b, column: 2 }], new Map([['w1:p2', 2]]))).toBeUndefined();
+    expect(withColumns([a, b], new Map())).toBeUndefined();
   });
 });
 

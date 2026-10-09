@@ -494,6 +494,16 @@ body {
   color: var(--fg);
 }
 
+/* The session whose terminal is the active terminal tab. */
+.card > .row.session.active {
+  background: color-mix(in srgb, var(--focus) 18%, transparent);
+}
+
+.card > .row.session.active .name {
+  color: var(--vscode-list-inactiveSelectionForeground, var(--fg));
+  font-weight: 600;
+}
+
 .row:hover > .pill,
 .row:focus-within > .pill {
   display: none;

@@ -1,6 +1,6 @@
 {
   "name": "paddock",
-  "displayName": "paddock",
+  "displayName": "Paddock",
   "version": "0.1.0",
   "description": "Switch projects in one VS Code window without losing your coding agents",
   "categories": [
@@ -148,7 +148,19 @@
         "command": "paddock.killSession",
         "title": "Kill Session",
         "category": "Paddock",
-        "icon": "$(trash)"
+        "icon": "$(close)"
+      },
+      {
+        "command": "paddock.splitRight",
+        "title": "Split Right",
+        "category": "Paddock",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "paddock.splitDown",
+        "title": "Split Down",
+        "category": "Paddock",
+        "icon": "$(split-vertical)"
       },
       {
         "command": "paddock.openWorktree",
@@ -238,7 +250,15 @@
         },
         {
           "command": "paddock.killSession",
-          "when": "false"
+          "when": "paddock.activeIsSession"
+        },
+        {
+          "command": "paddock.splitRight",
+          "when": "paddock.activeIsSession"
+        },
+        {
+          "command": "paddock.splitDown",
+          "when": "paddock.activeIsSession"
         },
         {
           "command": "paddock.openWorktree",
@@ -356,6 +376,19 @@
           ],
           "default": "editor",
           "description": "Where new session terminals open."
+        },
+        "paddock.toolbarIcons": {
+          "type": "string",
+          "enum": [
+            "unicode",
+            "nerdFont"
+          ],
+          "default": "unicode",
+          "enumDescriptions": [
+            "Plain symbols that work in any font.",
+            "VS Code's own icons, for a terminal font from Nerd Fonts."
+          ],
+          "markdownDescription": "Icons of the split and kill buttons on a session terminal's top row. Choose `nerdFont` when `terminal.integrated.fontFamily` is a Nerd Font for larger, sharper icons."
         },
         "paddock.switchMode": {
           "type": "string",

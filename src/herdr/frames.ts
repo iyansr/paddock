@@ -53,3 +53,55 @@ export type ControlCommand =
 export function encodeCommand(command: ControlCommand): string {
   return JSON.stringify(command) + '\n';
 }
+
+/**
+ * Asks the VS Code terminal to report mouse events as SGR sequences. herdr's
+ * frames are repaints and never carry the app's own mouse mode, so without this
+ * the wheel scrolls VS Code's scrollback, which holds none of the pane's history.
+ */
+export const MOUSE_REPORTING_ON = '\x1b[?1000h\x1b[?1006h';
+
+/** Lines scrolled per wheel report. */
+export const WHEEL_LINES = 3;
+
+// SGR mouse report: ESC [ < button ; col ; row (M press | m release).
+// oxlint-disable-next-line no-control-regex -- matching ESC is the point
+const SGR_MOUSE = /\x1b\[<(\d+);\d+;\d+[Mm]/g;
+// Shift, Alt and Ctrl bits added to the button code.
+const MODIFIERS = 4 | 8 | 16;
+
+/**
+ * Splits terminal input into control commands: wheel reports become
+ * `terminal.scroll` (herdr scrolls its own scrollback, or forwards the wheel to an
+ * app that asked for the mouse), other mouse reports are dropped, and the rest is
+ * passed on as typed input.
+ */
+export function translateInput(data: string): ControlCommand[] {
+  const commands: ControlCommand[] = [];
+  let text = '';
+  let last = 0;
+  for (const match of data.matchAll(SGR_MOUSE)) {
+    text += data.slice(last, match.index);
+    last = match.index + match[0].length;
+    const button = Number(match[1]) & ~MODIFIERS;
+    if (button !== 64 && button !== 65) {
+      continue;
+    }
+    if (text) {
+      commands.push({ type: 'terminal.input', text });
+      text = '';
+    }
+    const direction = button === 64 ? 'up' : 'down';
+    const prev = commands.at(-1);
+    if (prev?.type === 'terminal.scroll' && prev.direction === direction) {
+      prev.lines += WHEEL_LINES;
+    } else {
+      commands.push({ type: 'terminal.scroll', direction, lines: WHEEL_LINES });
+    }
+  }
+  text += data.slice(last);
+  if (text) {
+    commands.push({ type: 'terminal.input', text });
+  }
+  return commands;
+}

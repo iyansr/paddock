@@ -24,12 +24,13 @@ const session = (paneId: string, status: SessionState, kind = 'claude'): Session
   kind,
   status,
   open: false,
+  active: false,
 });
 
 const sessions: Record<string, SessionSource[]> = {
   app: [session('p1', 'done')],
   [`app:${feat.path}`]: [session('p2', 'waiting'), session('p3', 'running')],
-  notes: [{ ...session('p4', 'running'), kind: undefined }],
+  notes: [{ ...session('p4', 'running'), kind: undefined, open: true, active: true }],
 };
 
 const model = (current?: Checkout) =>
@@ -89,6 +90,13 @@ describe('sidebar model', () => {
     expect(m.groups[0].projects[0].current).toBe(true);
     expect(m.groups[0].projects[0].checkouts.map(c => c.current)).toEqual([false, true]);
     expect(m.projects[0].current).toBe(false);
+  });
+
+  it('carries which session is open and active', () => {
+    const notes = model().projects[0];
+    expect(notes.sessions.map(s => [s.open, s.active])).toEqual([[true, true]]);
+    const [app] = model().groups[0].projects[0].checkouts;
+    expect(app.sessions.map(s => [s.open, s.active])).toEqual([[false, false]]);
   });
 });
 

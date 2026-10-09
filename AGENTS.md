@@ -43,6 +43,7 @@ src/
   herdr/cli.ts        the only place that runs herdr; returns parsed JSON
   herdr/terminal.ts   Pseudoterminal over `herdr terminal session control` (the only file in herdr/ that imports VS Code)
   herdr/parse.ts      validates herdr JSON; herdr/frames.ts stream protocol; herdr/names.ts agent names
+  herdr/toolbar.ts    the split/kill toolbar the pty draws on a terminal's top row (pure)
   sessions.ts         sessions per project, open terminals, layout, project switching
   layout.ts           saved open-terminal layout (pure)
   herdr/status.ts     polls `herdr agent list`, maps states
@@ -93,8 +94,8 @@ docs/
 ## Testing
 
 - Unit-test parsing of herdr responses, `terminal.frame` decoding, state mapping, the pick format and style filtering.
-- Integration tests (`test:herdr`) run against a real herdr server on a throwaway session name such as `paddock-test-<random>`. Tear it down afterwards. Never run tests against the `paddock` session; it holds my real agents.
 - A development or test run (F5, `pnpm test`) never shares data with an installed Paddock: `src/devState.ts` prefixes its state keys with `dev:`, keeps its files in `globalStorage/…/dev`, and swaps the `paddock` herdr session for `paddock-dev`. F5 also opens with its own user data in `.vscode-dev/`.
+- Integration tests (`test:herdr`) run against a real herdr server on a throwaway session name such as `paddock-test-<random>`. Tear it down afterwards. Never run tests against the `paddock` session; it holds my real agents.
 - Before finishing a milestone, go through its manual checklist in `docs/PLAN.md`.
 
 ## Working on milestones

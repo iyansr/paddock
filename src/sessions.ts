@@ -28,11 +28,15 @@ import { displayName, nextAgentName } from './herdr/names';
 import { HerdrError, type AgentInfo, type PaneInfo, type WorktreeInfo } from './herdr/parse';
 import { mapStatus, newlyWaiting, waitingByWorkspace, type SessionState, type StatusEntry } from './herdr/status';
 import { HerdrPty } from './herdr/terminal';
+import type { ToolbarIcons } from './herdr/toolbar';
 import {
+  GRIDS_KEY,
   LAYOUTS_KEY,
   remove,
   restorable,
   upsert,
+  withColumns,
+  type Grids,
   type Layouts,
   type OpenSession,
   type TerminalLocation,
@@ -49,6 +53,8 @@ export interface SessionInfo {
   kind?: string;
   status: SessionState;
   open: boolean;
+  /** Its terminal is the active terminal tab in this window. */
+  active: boolean;
 }
 
 const PENDING_KEY = 'paddock.pendingOpen';
@@ -104,6 +110,7 @@ export class Sessions {
   private seen: Map<string, SessionState> | undefined;
   private readonly terminals = new Map<string, OpenTerminal>();
   private layouts: Layouts;
+  private grids: Grids;
   private editors: EditorSnapshots;
   /** Pane of the Paddock terminal focused last; a browser pick is sent there. */
   private lastFocused: string | undefined;
@@ -116,6 +123,7 @@ export class Sessions {
     private readonly context: vscode.ExtensionContext,
   ) {
     this.layouts = context.workspaceState.get<Layouts>(LAYOUTS_KEY) ?? {};
+    this.grids = context.workspaceState.get<Grids>(GRIDS_KEY) ?? {};
     this.editors = context.workspaceState.get<EditorSnapshots>(EDITORS_KEY) ?? {};
     this.worktrees = context.globalState.get<Worktrees>(WORKTREES_KEY) ?? {};
     // Whatever closed a terminal (tab, `exit`, pane killed elsewhere), forget it.
@@ -126,7 +134,28 @@ export class Sessions {
         for (const [paneId, open] of this.terminals) {
           if (open.terminal === t) {
             this.lastFocused = paneId;
-            this.changed.fire();
+          }
+        }
+        this.syncActiveContext();
+        // Also when another terminal takes over, so the sidebar drops its active row.
+        this.changed.fire();
+      }),
+      // A terminal tab opened, dragged to another group, or groups were added or moved: remember where each one is.
+      // Closes are ignored, since a closing window closes every tab and the layout must outlive that.
+      vscode.window.tabGroups.onDidChangeTabs(e => {
+        if (e.opened.length || e.changed.length) {
+          void this.recordColumns();
+        }
+      }),
+      vscode.window.tabGroups.onDidChangeTabGroups(e => {
+        if (e.opened.length || e.changed.length) {
+          void this.recordColumns();
+        }
+      }),
+      vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('paddock.toolbarIcons')) {
+          for (const open of this.terminals.values()) {
+            open.pty.setIcons(this.toolbarIcons());
           }
         }
       }),
@@ -164,7 +193,12 @@ export class Sessions {
 
   sessionsIn(c: Checkout): SessionInfo[] {
     const workspaceId = this.workspaceOf(c);
-    return (workspaceId && this.bySession.get(workspaceId)) || [];
+    const list = (workspaceId && this.bySession.get(workspaceId)) || [];
+    // Read the terminals live: they change between polls.
+    return list.map(s => {
+      const terminal = this.terminals.get(s.paneId)?.terminal;
+      return { ...s, open: !!terminal, active: !!terminal && terminal === vscode.window.activeTerminal };
+    });
   }
 
   /** Every checkout of the project, main first; empty when it is not a git repository (or not listed yet). */
@@ -499,7 +533,8 @@ export class Sessions {
         name: displayName(agent?.name, agent?.kind, pane.paneId),
         kind: agent?.kind,
         status: mapStatus(agent?.status ?? pane.agentStatus, !!agent),
-        open: this.terminals.has(pane.paneId),
+        open: false,
+        active: false,
       };
       grouped.set(pane.workspaceId, [...(grouped.get(pane.workspaceId) ?? []), info]);
     }
@@ -586,34 +621,139 @@ export class Sessions {
   }
 
   /** Focuses the session's terminal, opening it first if needed. */
-  show(session: SessionInfo, options: { location?: TerminalLocation; preserveFocus?: boolean } = {}): void {
+  show(
+    session: SessionInfo,
+    options: { location?: TerminalLocation; preserveFocus?: boolean; column?: number } = {},
+  ): void {
     const existing = this.terminals.get(session.paneId);
     if (existing && existing.terminal.exitStatus === undefined) {
       existing.terminal.show(options.preserveFocus);
       return;
     }
     const location = options.location ?? this.location();
+    const column = location === 'editor' ? (options.column ?? vscode.ViewColumn.Active) : undefined;
+    this.create(session, location, column === undefined ? undefined : { viewColumn: column, preserveFocus: true });
+    this.terminals.get(session.paneId)?.terminal.show(options.preserveFocus);
+    this.changed.fire();
+  }
+
+  /** The session behind the active terminal, when it is a Paddock one. */
+  activeSession(): SessionInfo | undefined {
+    for (const [paneId, open] of this.terminals) {
+      if (open.terminal === vscode.window.activeTerminal) {
+        return this.findSession(paneId);
+      }
+    }
+    return undefined;
+  }
+
+  /** Opens the session next to `from`'s terminal (else the active one): in a new editor group right of or below it, or split in the panel. */
+  async showSplit(session: SessionInfo, direction: 'right' | 'down', from?: string): Promise<void> {
+    const existing = this.terminals.get(session.paneId);
+    if (existing && existing.terminal.exitStatus === undefined) {
+      existing.terminal.show();
+      return;
+    }
+    const parent =
+      (from && this.terminals.get(from)) ||
+      [...this.terminals.values()].find(o => o.terminal === vscode.window.activeTerminal);
+    // New groups open beside the active one, so start from the clicked terminal.
+    parent?.terminal.show();
+    if (parent?.session.location === 'panel') {
+      this.create(session, 'panel', { parentTerminal: parent.terminal });
+    } else if (direction === 'right') {
+      this.create(session, 'editor', { viewColumn: vscode.ViewColumn.Beside });
+    } else {
+      await vscode.commands.executeCommand('workbench.action.newGroupBelow');
+      this.create(session, 'editor', { viewColumn: vscode.ViewColumn.Active });
+    }
+    this.terminals.get(session.paneId)?.terminal.show();
+    this.changed.fire();
+  }
+
+  private create(
+    session: SessionInfo,
+    location: TerminalLocation,
+    where: vscode.TerminalEditorLocationOptions | vscode.TerminalSplitLocationOptions | undefined,
+  ): void {
     const pty = new HerdrPty(this.herdr, session.paneId, {
       onClosed: () => this.closed(session.paneId),
+      onAction: action => void vscode.commands.executeCommand(`paddock.${action}`, session.paneId),
     });
+    pty.setIcons(this.toolbarIcons());
     const terminal = vscode.window.createTerminal({
       name: session.name,
       pty,
-      location: location === 'editor' ? { viewColumn: vscode.ViewColumn.Active } : undefined,
+      location: where,
       isTransient: true,
     });
-    const open: OpenSession = { paneId: session.paneId, terminalId: session.terminalId, location };
+    const column = where && 'viewColumn' in where && where.viewColumn > 0 ? where.viewColumn : undefined;
+    const open: OpenSession = { paneId: session.paneId, terminalId: session.terminalId, location, column };
     const checkout = this.checkoutOfWorkspace(session.workspaceId) ?? this.currentCheckout();
     const key = checkout ? checkoutKey(checkout) : '';
     this.terminals.set(session.paneId, { terminal, pty, session: open, name: session.name, key });
+    this.syncActiveContext();
     void this.saveLayout(key, upsert(this.layouts[key] ?? [], open));
-    terminal.show(options.preserveFocus);
-    this.changed.fire();
+  }
+
+  /** Saves the editor group of every open editor terminal, and the grid of groups, while the window is open. */
+  private async recordColumns(): Promise<void> {
+    if (this.leaving) {
+      return;
+    }
+    const columnOf = new Map<string, number>();
+    for (const group of vscode.window.tabGroups.all) {
+      for (const tab of group.tabs) {
+        if (tab.input instanceof vscode.TabInputTerminal) {
+          columnOf.set(tab.label, group.viewColumn);
+        }
+      }
+    }
+    const byKey = new Map<string, Map<string, number>>();
+    for (const [paneId, open] of this.terminals) {
+      const column = open.session.location === 'editor' ? columnOf.get(open.name) : undefined;
+      if (column !== undefined) {
+        byKey.set(open.key, (byKey.get(open.key) ?? new Map<string, number>()).set(paneId, column));
+      }
+    }
+    for (const [key, columns] of byKey) {
+      // The saved entries are shared with this.terminals, so compare before changing either.
+      const next = withColumns(this.layouts[key] ?? [], columns);
+      if (next) {
+        for (const entry of next) {
+          const open = this.terminals.get(entry.paneId);
+          if (open) {
+            open.session = entry;
+          }
+        }
+        await this.saveLayout(key, next);
+      }
+      const grid: unknown = await vscode.commands.executeCommand('vscode.getEditorLayout');
+      if (!this.leaving && JSON.stringify(grid) !== JSON.stringify(this.grids[key])) {
+        this.grids = { ...this.grids, [key]: grid };
+        await this.context.workspaceState.update(GRIDS_KEY, this.grids);
+      }
+    }
+  }
+
+  private toolbarIcons(): ToolbarIcons {
+    return vscode.workspace.getConfiguration('paddock').get('toolbarIcons') === 'nerdFont' ? 'nerdFont' : 'unicode';
+  }
+
+  /** Marks whether the active terminal is a Paddock one, and shows the toolbar buttons only on that one. */
+  private syncActiveContext(): void {
+    const active = [...this.terminals.values()].some(o => o.terminal === vscode.window.activeTerminal);
+    void vscode.commands.executeCommand('setContext', 'paddock.activeIsSession', active);
+    // The terminal's focus reports refine this; it starts them only once focus moves.
+    for (const open of this.terminals.values()) {
+      open.pty.setFocused(open.terminal === vscode.window.activeTerminal);
+    }
   }
 
   private closed(paneId: string): void {
     const open = this.terminals.get(paneId);
     this.terminals.delete(paneId);
+    this.syncActiveContext();
     if (open && !this.leaving) {
       void this.saveLayout(open.key, remove(this.layouts[open.key] ?? [], paneId));
       // The pane may be gone (the shell exited); drop it from the sidebar.
@@ -648,11 +788,19 @@ export class Sessions {
     const key = checkoutKey(current);
     await this.refresh();
     const panes = this.sessionsIn(current);
-    for (const saved of restorable(this.layouts[key] ?? [], panes)) {
-      const session = panes.find(p => p.paneId === saved.paneId);
+    const saved = restorable(this.layouts[key] ?? [], panes);
+    // Editor terminals go back to their group when the setting still says editor.
+    const inEditor = this.location() === 'editor';
+    const needed = Math.max(0, ...saved.map(s => (inEditor && s.column) || 0));
+    if (needed > vscode.window.tabGroups.all.length && this.grids[key]) {
+      // VS Code dropped the split groups (they were empty); rebuild them.
+      await vscode.commands.executeCommand('vscode.setEditorLayout', this.grids[key]);
+    }
+    for (const s of saved) {
+      const session = panes.find(p => p.paneId === s.paneId);
       if (session) {
         // Reopen where the setting says, not where the terminal was last time.
-        this.show(session, { preserveFocus: true });
+        this.show(session, { preserveFocus: true, column: inEditor ? s.column : undefined });
       }
     }
     const pending = this.context.globalState.get<PendingOpen>(PENDING_KEY);
@@ -910,6 +1058,8 @@ export class Sessions {
     }
     const key = checkoutKey(c);
     this.layouts = Object.fromEntries(Object.entries(this.layouts).filter(([k]) => k !== key));
+    this.grids = Object.fromEntries(Object.entries(this.grids).filter(([k]) => k !== key));
+    await this.context.workspaceState.update(GRIDS_KEY, this.grids);
     this.editors = Object.fromEntries(Object.entries(this.editors).filter(([k]) => k !== key));
     await this.context.workspaceState.update(LAYOUTS_KEY, this.layouts);
     await this.context.workspaceState.update(EDITORS_KEY, this.editors);

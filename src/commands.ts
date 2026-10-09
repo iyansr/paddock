@@ -90,8 +90,12 @@ export function registerCommands(
     return project && { project };
   };
 
-  /** Asks for a preset and starts it in the checkout, switching there when it is not open. */
-  const startSession = async (checkout: Checkout, pane?: PaneInfo) => {
+  /** Asks for a preset and starts it in the checkout, switching there when it is not open; `split` opens it beside a terminal. */
+  const startSession = async (
+    checkout: Checkout,
+    pane?: PaneInfo,
+    split?: { direction: 'right' | 'down'; from?: string },
+  ) => {
     // The lookup started on activation; a still-running one only delays the list, not the picker.
     const items = agents
       .presets(vscode.workspace.getConfiguration('paddock').get('agents'))
@@ -105,10 +109,40 @@ export function registerCommands(
     const here = sessions.isCurrent(checkout);
     const started = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: `Starting ${preset.label}…` },
-      () => sessions.start(checkout, preset.preset, { open: here, pane }),
+      () => sessions.start(checkout, preset.preset, { open: here && !split, pane }),
     );
     if (started && !here) {
       await sessions.switchTo(checkout, started);
+    } else if (started && split) {
+      await sessions.showSplit(started, split.direction, split.from);
+    }
+  };
+
+  /** Opens a new session, or one of the checkout's sessions not open yet, beside a Paddock terminal (the active one by default). */
+  const split = async (direction: 'right' | 'down', from?: unknown) => {
+    const active = typeof from === 'string' ? sessions.findSession(from) : sessions.activeSession();
+    const checkout = (active && sessions.checkoutOfWorkspace(active.workspaceId)) ?? sessions.currentCheckout();
+    if (!checkout) {
+      return;
+    }
+    const closed = sessions.sessionsIn(checkout).filter(s => !s.open);
+    const choice = closed.length
+      ? await vscode.window.showQuickPick(
+          [
+            { label: '$(add) New session…' },
+            { label: 'Open', kind: vscode.QuickPickItemKind.Separator },
+            ...closed.map(s => ({ label: s.name, description: s.kind ?? 'shell', session: s })),
+          ],
+          { placeHolder: `Split ${direction} in ${checkoutName(checkout)}` },
+        )
+      : { label: '' };
+    if (!choice) {
+      return;
+    }
+    if ('session' in choice) {
+      await sessions.showSplit(choice.session, direction, active?.paneId);
+    } else {
+      await startSession(checkout, undefined, { direction, from: active?.paneId });
     }
   };
 
@@ -326,8 +360,10 @@ export function registerCommands(
 
     vscode.commands.registerCommand(
       'paddock.killSession',
-      guarded(async (node?: Node) => {
-        const session = sessionOf(node);
+      guarded(async (node?: Node | string) => {
+        // A terminal's toolbar passes its pane id; the command palette passes nothing.
+        const session =
+          typeof node === 'string' ? sessions.findSession(node) : node ? sessionOf(node) : sessions.activeSession();
         if (!session) {
           return;
         }
@@ -343,6 +379,16 @@ export function registerCommands(
           await sessions.kill(session);
         }
       }),
+    ),
+
+    vscode.commands.registerCommand(
+      'paddock.splitRight',
+      guarded((from?: unknown) => split('right', from)),
+    ),
+
+    vscode.commands.registerCommand(
+      'paddock.splitDown',
+      guarded((from?: unknown) => split('down', from)),
     ),
 
     vscode.commands.registerCommand(

@@ -4,11 +4,30 @@ import { StringDecoder } from 'node:string_decoder';
 import * as vscode from 'vscode';
 
 import type { Herdr } from './cli';
-import { encodeCommand, LineSplitter, parseStreamLine, type ControlCommand } from './frames';
+import {
+  encodeCommand,
+  LineSplitter,
+  MOUSE_REPORTING_ON,
+  parseStreamLine,
+  translateInput,
+  type ControlCommand,
+} from './frames';
+import {
+  drawToolbar,
+  FOCUS_REPORTING_ON,
+  scrollRegion,
+  shiftRows,
+  takeToolbarInput,
+  TOOLBAR_ROWS,
+  type ToolbarAction,
+  type ToolbarIcons,
+} from './toolbar';
 
 export interface PtyEvents {
   /** The VS Code terminal went away (tab closed, or the window is shutting down). */
   onClosed(): void;
+  /** A toolbar button was clicked. */
+  onAction(action: ToolbarAction): void;
 }
 
 /**
@@ -28,6 +47,10 @@ export class HerdrPty implements vscode.Pseudoterminal {
   private pending: ControlCommand[] = [];
   private released = false;
   private ended = false;
+  private cols = 80;
+  private rows = 24;
+  private focused = false;
+  private icons: ToolbarIcons = 'unicode';
 
   constructor(
     private readonly herdr: Herdr,
@@ -36,7 +59,10 @@ export class HerdrPty implements vscode.Pseudoterminal {
   ) {}
 
   open(initial: vscode.TerminalDimensions | undefined): void {
-    void this.start(initial?.columns ?? 80, initial?.rows ?? 24);
+    this.cols = initial?.columns ?? this.cols;
+    this.rows = initial?.rows ?? this.rows;
+    this.write.fire(this.modes() + this.toolbar());
+    void this.start(this.cols, this.paneRows());
   }
 
   close(): void {
@@ -59,12 +85,54 @@ export class HerdrPty implements vscode.Pseudoterminal {
     this.nameChanged.fire(name);
   }
 
+  /** Switches the toolbar glyphs (the `paddock.toolbarIcons` setting). */
+  setIcons(icons: ToolbarIcons): void {
+    if (icons !== this.icons) {
+      this.icons = icons;
+      this.write.fire(this.toolbar());
+    }
+  }
+
+  private toolbar(): string {
+    return drawToolbar(this.cols, this.focused, this.icons);
+  }
+
+  /** Shows or hides the toolbar buttons; also driven by the terminal's own focus reports. */
+  setFocused(focused: boolean): void {
+    if (focused !== this.focused) {
+      this.focused = focused;
+      this.write.fire(this.toolbar());
+    }
+  }
+
   handleInput(data: string): void {
-    this.send({ type: 'terminal.input', text: data });
+    const { rest, focused, clicks } = takeToolbarInput(data, this.cols);
+    if (focused !== undefined) {
+      this.setFocused(focused);
+    }
+    for (const action of clicks) {
+      this.events.onAction(action);
+    }
+    for (const command of translateInput(rest)) {
+      this.send(command);
+    }
   }
 
   setDimensions(dimensions: vscode.TerminalDimensions): void {
-    this.send({ type: 'terminal.resize', cols: dimensions.columns, rows: dimensions.rows });
+    this.cols = dimensions.columns;
+    this.rows = dimensions.rows;
+    this.write.fire(scrollRegion(this.rows) + this.toolbar());
+    this.send({ type: 'terminal.resize', cols: this.cols, rows: this.paneRows() });
+  }
+
+  /** Rows herdr draws into, below the toolbar. */
+  private paneRows(): number {
+    return Math.max(1, this.rows - TOOLBAR_ROWS);
+  }
+
+  /** Terminal modes Paddock relies on; a full frame follows a reset, so they are re-sent with it. */
+  private modes(): string {
+    return MOUSE_REPORTING_ON + FOCUS_REPORTING_ON + scrollRegion(this.rows);
   }
 
   private send(command: ControlCommand): void {
@@ -96,7 +164,7 @@ export class HerdrPty implements vscode.Pseudoterminal {
       for (const line of lines.push(chunk)) {
         const record = parseStreamLine(line);
         if (record?.type === 'frame') {
-          this.write.fire(decoder.write(record.bytes));
+          this.write.fire((record.full ? this.modes() : '') + shiftRows(decoder.write(record.bytes)) + this.toolbar());
         } else if (record?.type === 'closed' && !this.released) {
           // The pane exited or another controller took over. VS Code does not
           // always call close() when the pty closes itself, so report it here too.
