@@ -272,8 +272,9 @@ export class Sessions {
   }
 
   /**
-   * Re-lists worktrees when a checkout changes branch (`git checkout` in a terminal), by
-   * watching each project's HEAD and its linked worktrees' HEADs. Follows the project list.
+   * Re-lists worktrees when a checkout changes branch (`git checkout` in a terminal) or a worktree is
+   * added or removed outside Paddock (`git worktree add`), by watching each project's HEAD and its
+   * linked worktrees' HEADs. Follows the project list.
    */
   watchBranches(): vscode.Disposable {
     let watchers: vscode.Disposable[] = [];
@@ -293,6 +294,7 @@ export class Sessions {
         const watcher = vscode.workspace.createFileSystemWatcher(pattern);
         watcher.onDidChange(changed);
         watcher.onDidCreate(changed);
+        watcher.onDidDelete(changed);
         return watcher;
       });
     };
