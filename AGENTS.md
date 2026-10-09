@@ -8,7 +8,7 @@ Paddock is a VS Code extension that keeps coding agents running while I switch p
 
 - Agents run in [herdr](https://herdr.dev/), not in VS Code. VS Code only draws their terminals, so agents survive window reloads and project switches.
 - The sidebar shows groups, projects, worktrees and agent sessions with live status badges.
-- VS Code's integrated browser, with an Orca-style picker Paddock injects over the Chrome DevTools Protocol (CDP), lets me pick an element and copy its context or send it to an agent. It uses VS Code's `browser` API proposal; F5 passes `--enable-proposed-api`, an installed build needs it in `argv.json`.
+- VS Code's integrated browser, with an element picker Paddock injects over the Chrome DevTools Protocol (CDP), lets me pick an element and copy its context or send it to an agent. It uses VS Code's `browser` API proposal; F5 passes `--enable-proposed-api`, an installed build needs it in `argv.json`.
 
 Read these before changing behaviour:
 

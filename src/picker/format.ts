@@ -1,4 +1,4 @@
-// The pick as plain text, in the layout of Orca's browser context. Pure; no VS Code.
+// The pick as plain text, in a fixed layout any agent can read. Pure; no VS Code.
 
 /** What the in-page picker reads about the picked element. */
 export interface PageCapture {

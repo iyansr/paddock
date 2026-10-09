@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-// The element picker that runs inside browser pages, in the style of Orca's grab mode: a
+// The element picker that runs inside browser pages: a
 // Pick button, a full-page click catcher with its own highlight and label, the details
 // of the clicked element read right here, and a card for the instruction, Copy and Send.
 // It is sent as source text (Function.prototype.toString), so it must not use anything

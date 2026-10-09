@@ -2,14 +2,14 @@
 
 Oct 8, 2026 · @Iyan Saputra
 
-Paddock is a VS Code extension that brings Orca's agent workflow into a single VS Code window: a project sidebar whose agent terminals survive project switches, and a Chromium element picker that sends what I click straight into the agent's prompt. Everything else stays plain VS Code, so files keep full LSP support.
+Paddock is a VS Code extension for working with coding agents in a single VS Code window: a project sidebar whose agent terminals survive project switches, and a Chromium element picker that sends what I click straight into the agent's prompt. Everything else stays plain VS Code, so files keep full LSP support.
 
 ## Problem
 
-Neither Orca nor plain VS Code fits my agent workflow on its own.
+Neither standalone agent apps nor plain VS Code fit my agent workflow on their own.
 
-- **Orca is too heavy for what I use.** I only need its project switcher, file preview and element-picking browser. Everything else (mobile app, GitHub/Linear, SSH worktrees, usage tracking) is weight I don't use.
-- **Orca's file preview has no code intelligence.** It embeds VS Code's editor but no language servers, so there is no go-to-definition, hover types or diagnostics.
+- **Standalone agent apps are too heavy for what I use.** I only need a project switcher, file preview and an element-picking browser. Everything else (mobile app, GitHub/Linear, SSH worktrees, usage tracking) is weight I don't use.
+- **Their file previews have no code intelligence.** They embed an editor but no language servers, so there is no go-to-definition, hover types or diagnostics.
 - **Plain VS Code loses agent state on switch.** Opening another folder in the same window restarts the extension host and kills its terminals, including a running Claude Code session.
 - **VS Code's built-in element picker targets the wrong agent.** The integrated browser's Add Element to Chat sends to VS Code's own chat, not to a CLI agent in a terminal, and extensions can't add buttons to its toolbar.
 
@@ -54,8 +54,8 @@ All requirements below are in scope for v1; later work is listed at the end.
 ### Element picker
 
 - **R12 Open browser.** One "Open Browser" button opens an empty tab of VS Code's own integrated browser in the current editor group, next to my other tabs; I type the URL. No separate window, no debugger, and scrolling and typing feel like any browser.
-- **R13 Pick mode.** Works like Orca's grab mode. A small Pick button sits in the corner of every page (VS Code does not let extensions add buttons to the browser's own toolbar); a keyboard shortcut does the same. Pick mode highlights the element under the mouse with a label of its tag, role, text and size. Clicking selects it without the page seeing the click; C copies the hovered element straight away; Esc cancels.
-- **R14 Capture.** A pick captures the page URL, tag and role, a CSS selector, the nearest React component, size, text content, nearby text, key computed styles, trimmed outer HTML, the ancestor and full DOM paths, and a cropped screenshot. It's written as plain text in the same layout as Orca's browser context, so any agent can read it.
+- **R13 Pick mode.** A small Pick button sits in the corner of every page (VS Code does not let extensions add buttons to the browser's own toolbar); a keyboard shortcut does the same. Pick mode highlights the element under the mouse with a label of its tag, role, text and size. Clicking selects it without the page seeing the click; C copies the hovered element straight away; Esc cancels.
+- **R14 Capture.** A pick captures the page URL, tag and role, a CSS selector, the nearest React component, size, text content, nearby text, key computed styles, trimmed outer HTML, the ancestor and full DOM paths, and a cropped screenshot. It's written as plain text in a fixed layout, so any agent can read it.
 - **R15 Optional comment.** After picking, I can type a short instruction that is saved with the pick.
 - **R16 Send to agent.** The pick is written to `.paddock/picks/<timestamp>.md` and `.png`. Paddock then types ` @<path>  ` into the chosen session's input without pressing Enter, so I can finish the prompt myself. The target defaults to the last focused session.
 - **R17 Keep git clean.** Paddock adds `.paddock/` to `.git/info/exclude` the first time it writes there.
@@ -80,7 +80,7 @@ All requirements below are in scope for v1; later work is listed at the end.
 | Project switch to a usable agent terminal | under 5 s |
 | Pick to element reference in the prompt | 2 actions |
 | Agent sessions lost across switches and reloads | 0 |
-| Days in a row without opening Orca | 7 |
+| Days in a row using Paddock as my only agent workspace | 7 |
 
 ## Later, risks and open questions
 

@@ -88,7 +88,7 @@ describe('filterStyles', () => {
 });
 
 describe('formatPick', () => {
-  it('matches the Orca browser context layout, instruction last', () => {
+  it('matches the pick layout, instruction last', () => {
     expect(formatPick(hero, '.paddock/picks/20261008-141005-h2.png', '  make this heading smaller on mobile ')).toBe(
       [
         'Attached browser context from https://yapp.ink/',
