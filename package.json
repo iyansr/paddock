@@ -1,12 +1,22 @@
 {
   "name": "paddock",
   "displayName": "paddock",
-  "publisher": "iyansr",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Switch projects in one VS Code window without losing your coding agents",
   "categories": [
     "Other"
   ],
+  "keywords": [
+    "agents",
+    "browser",
+    "claude",
+    "codex",
+    "herdr",
+    "terminal",
+    "worktree"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "publisher": "iyansr",
   "main": "./dist/extension.js",
   "scripts": {
     "vscode:prepublish": "pnpm run package",
@@ -94,7 +104,7 @@
       },
       {
         "command": "paddock.moveToGroup",
-        "title": "Move to Group\u2026",
+        "title": "Move to Group…",
         "category": "Paddock"
       },
       {
@@ -104,7 +114,7 @@
       },
       {
         "command": "paddock.newSession",
-        "title": "New Session\u2026",
+        "title": "New Session…",
         "category": "Paddock",
         "icon": "$(add)"
       },
@@ -136,13 +146,13 @@
       },
       {
         "command": "paddock.newWorktree",
-        "title": "New Worktree\u2026",
+        "title": "New Worktree…",
         "category": "Paddock",
         "icon": "$(git-branch)"
       },
       {
         "command": "paddock.removeWorktree",
-        "title": "Remove Worktree\u2026",
+        "title": "Remove Worktree…",
         "category": "Paddock",
         "icon": "$(trash)"
       },
@@ -356,6 +366,7 @@
     ]
   },
   "activationEvents": [],
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.140.0"
   },
