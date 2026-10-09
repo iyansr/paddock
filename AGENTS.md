@@ -99,5 +99,5 @@ docs/
 ## Working on milestones
 
 - Work on one milestone at a time, in order: M0, M1, M2, M3, M4, M5.
-- Keep commits small and named after the milestone, for example `M1: stream herdr pane into Pseudoterminal`.
+- Keep commits small and follow convetional commit message
 - If the plan turns out to be wrong (a herdr command behaves differently, a VS Code API is missing), say so and propose the change to `docs/PLAN.md` rather than working around it silently.
