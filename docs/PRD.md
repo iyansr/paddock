@@ -54,6 +54,8 @@ All requirements below are in scope for v1; later work is listed at the end.
 ### Element picker
 
 - **R12 Open browser.** One "Open Browser" button opens an empty tab of VS Code's own integrated browser in the current editor group, next to my other tabs; I type the URL. No separate window, no debugger, and scrolling and typing feel like any browser.
+> On the roadmap: R12 to R18 are built but switched off until VS Code's `browser` API is stable, since the Marketplace does not take extensions that use proposed APIs.
+
 - **R13 Pick mode.** A small Pick button sits in the corner of every page (VS Code does not let extensions add buttons to the browser's own toolbar); a keyboard shortcut does the same. Pick mode highlights the element under the mouse with a label of its tag, role, text and size. Clicking selects it without the page seeing the click; C copies the hovered element straight away; Esc cancels.
 - **R14 Capture.** A pick captures the page URL, tag and role, a CSS selector, the nearest React component, size, text content, nearby text, key computed styles, trimmed outer HTML, the ancestor and full DOM paths, and a cropped screenshot. It's written as plain text in a fixed layout, so any agent can read it.
 - **R15 Optional comment.** After picking, I can type a short instruction that is saved with the pick.
