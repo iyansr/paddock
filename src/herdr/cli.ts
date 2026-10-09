@@ -10,6 +10,7 @@ import {
   parseCreated,
   parseEnvelope,
   parsePaneList,
+  parseSchemaProtocol,
   parseServerRunning,
   parseWorkspaceList,
   parseWorktreeList,
@@ -108,6 +109,12 @@ export class Herdr {
       throw new HerdrError(String(failed.code ?? 'exec_failed'), failed.message);
     }
     return stdout.trim();
+  }
+
+  /** Protocol number of herdr's socket API, from `herdr api schema --json`; undefined if unreadable. */
+  async apiProtocol(): Promise<number | undefined> {
+    const { stdout, failed } = await this.exec(['api', 'schema', '--json']);
+    return failed ? undefined : parseSchemaProtocol(stdout);
   }
 
   async serverRunning(): Promise<boolean> {

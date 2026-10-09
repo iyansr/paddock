@@ -9,6 +9,7 @@ import {
   parseCreated,
   parseEnvelope,
   parsePaneList,
+  parseSchemaProtocol,
   parseServerRunning,
   parseWorkspaceList,
   parseWorktreeList,
@@ -173,6 +174,12 @@ describe('versions and status', () => {
   it('reads server status', () => {
     expect(parseServerRunning('status: running\nversion: 0.9.3\n')).toBe(true);
     expect(parseServerRunning('status: not running\n')).toBe(false);
+  });
+  it('reads the API protocol from the schema', () => {
+    expect(parseSchemaProtocol('{"protocol": 22, "schema_version": 1, "schemas": {}}')).toBe(22);
+    expect(parseSchemaProtocol('{"schema_version": 1}')).toBeUndefined();
+    expect(parseSchemaProtocol('{"protocol": "22"}')).toBeUndefined();
+    expect(parseSchemaProtocol('not json')).toBeUndefined();
   });
 });
 

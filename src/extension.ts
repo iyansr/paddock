@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { registerCommands } from './commands';
 import { Herdr, type HerdrConfig } from './herdr/cli';
-import { isSupportedVersion, MIN_HERDR_VERSION } from './herdr/parse';
+import { isSupportedVersion, MIN_HERDR_VERSION, TESTED_API_PROTOCOL } from './herdr/parse';
 import { Picker } from './picker/controller';
 import { Sessions } from './sessions';
 import { Store } from './store';
@@ -39,12 +39,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Never await herdr here: activation must not block startup.
-  void startHerdr(herdr, sessions);
+  void startHerdr(herdr, sessions, context.globalState);
   // Attaching to browser tabs is asynchronous too.
   picker.start();
 }
 
-async function startHerdr(herdr: Herdr, sessions: Sessions): Promise<void> {
+async function startHerdr(herdr: Herdr, sessions: Sessions, state: vscode.Memento): Promise<void> {
   try {
     const version = await herdr.version();
     if (!isSupportedVersion(version)) {
@@ -58,6 +58,7 @@ async function startHerdr(herdr: Herdr, sessions: Sessions): Promise<void> {
     );
     return;
   }
+  void checkApiProtocol(herdr, state);
   try {
     // Only bring the server up when this window's checkout may have sessions to reattach.
     const current = sessions.currentCheckout();
@@ -72,6 +73,24 @@ async function startHerdr(herdr: Herdr, sessions: Sessions): Promise<void> {
   } catch (e) {
     void vscode.window.showErrorMessage(`Paddock: ${e instanceof Error ? e.message : String(e)}`);
   }
+}
+
+const WARNED_PROTOCOL_KEY = 'paddock.warnedApiProtocol';
+
+/**
+ * Warns once per protocol number when herdr's socket API differs from the one Paddock was
+ * tested against: the terminal stream and JSON shapes may have changed with it.
+ */
+async function checkApiProtocol(herdr: Herdr, state: vscode.Memento): Promise<void> {
+  const protocol = await herdr.apiProtocol();
+  if (protocol === undefined || protocol === TESTED_API_PROTOCOL || state.get(WARNED_PROTOCOL_KEY) === protocol) {
+    return;
+  }
+  await state.update(WARNED_PROTOCOL_KEY, protocol);
+  void vscode.window.showWarningMessage(
+    `Paddock was tested with herdr API protocol ${TESTED_API_PROTOCOL}; the installed herdr speaks ${protocol}. ` +
+      'If sessions misbehave, update Paddock or install a matching herdr.',
+  );
 }
 
 async function offerInstall(message: string, action: string): Promise<void> {

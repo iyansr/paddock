@@ -2,6 +2,9 @@
 
 export const MIN_HERDR_VERSION = '0.9.3';
 
+/** `protocol` in `herdr api schema --json` of the herdr Paddock was tested against (0.9.3). */
+export const TESTED_API_PROTOCOL = 22;
+
 export class HerdrError extends Error {
   constructor(
     readonly code: string,
@@ -186,6 +189,18 @@ export function isSupportedVersion(text: string, min = MIN_HERDR_VERSION): boole
     }
   }
   return true;
+}
+
+/** The `protocol` number from `herdr api schema --json`, or undefined when it is missing. */
+export function parseSchemaProtocol(text: string): number | undefined {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  const protocol = typeof json === 'object' && json !== null ? (json as Record<string, unknown>).protocol : undefined;
+  return typeof protocol === 'number' && Number.isInteger(protocol) ? protocol : undefined;
 }
 
 /** Reads `herdr status server` output. */
