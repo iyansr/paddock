@@ -152,7 +152,7 @@ export function pickerScript(cfg: PickerConfig): void {
 .box{position:fixed;display:none;pointer-events:none;border:2px solid rgba(255,255,255,.9);border-radius:3px;background:rgba(255,255,255,.08);box-shadow:0 0 0 1px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.15);transition:all .05s ease-out}
 .box.sel{border-color:#4c8dff;background:rgba(76,141,255,.12)}
 .tip{position:fixed;display:none;pointer-events:none;padding:3px 8px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;background:rgba(30,30,30,.92);color:#e5e5e5;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-.pill{position:fixed;right:16px;bottom:16px;pointer-events:auto;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 10px;border:0;border-radius:999px;background:rgba(30,30,30,.92);color:#f2f2f2;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.pill{position:fixed;right:16px;top:16px;pointer-events:auto;display:flex;align-items:center;gap:6px;padding:6px 12px 6px 10px;border:0;border-radius:999px;background:rgba(30,30,30,.92);color:#f2f2f2;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .pill:hover{background:rgba(48,48,48,.95)}
 .pill.on{background:#4c8dff;color:#fff}
 .pill svg{width:14px;height:14px}
@@ -169,7 +169,7 @@ input:focus{border-color:#4c8dff}
 button.b{border:0;border-radius:6px;padding:4px 10px;cursor:pointer;background:rgba(255,255,255,.1);color:#e5e5e5}
 button.b.primary{background:#4c8dff;color:#fff}
 button.b:disabled{opacity:.5;cursor:default}
-.toast{position:fixed;right:16px;bottom:56px;display:none;max-width:360px;padding:6px 12px;border-radius:8px;background:rgba(30,30,30,.92);color:#e5e5e5;pointer-events:none}
+.toast{position:fixed;right:16px;top:56px;display:none;max-width:360px;padding:6px 12px;border-radius:8px;background:rgba(30,30,30,.92);color:#e5e5e5;pointer-events:none}
 </style>
 <div class="catcher"></div>
 <div class="box"></div>
