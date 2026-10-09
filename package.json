@@ -1,6 +1,7 @@
 {
   "name": "paddock",
   "displayName": "paddock",
+  "publisher": "iyansr",
   "version": "0.0.1",
   "description": "Switch projects in one VS Code window without losing your coding agents",
   "categories": [

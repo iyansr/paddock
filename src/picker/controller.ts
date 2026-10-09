@@ -11,7 +11,7 @@ import type { Pick } from './format';
 import type { PickerHost } from './page-picker';
 
 /** Extension id as VS Code knows it; `--enable-proposed-api` and argv.json name it. */
-const EXTENSION_ID = 'undefined_publisher.paddock';
+const EXTENSION_ID = 'iyansr.paddock';
 
 /**
  * Opens VS Code's integrated browser and keeps Paddock's element picker in its

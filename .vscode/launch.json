@@ -12,7 +12,7 @@
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
         // Stable VS Code allows the `browser` API proposal only with this flag, even here.
-        "--enable-proposed-api=undefined_publisher.paddock"
+        "--enable-proposed-api=iyansr.paddock"
       ],
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "preLaunchTask": "${defaultBuildTask}"
