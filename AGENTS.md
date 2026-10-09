@@ -94,6 +94,7 @@ docs/
 
 - Unit-test parsing of herdr responses, `terminal.frame` decoding, state mapping, the pick format and style filtering.
 - Integration tests (`test:herdr`) run against a real herdr server on a throwaway session name such as `paddock-test-<random>`. Tear it down afterwards. Never run tests against the `paddock` session; it holds my real agents.
+- A development or test run (F5, `pnpm test`) never shares data with an installed Paddock: `src/devState.ts` prefixes its state keys with `dev:`, keeps its files in `globalStorage/…/dev`, and swaps the `paddock` herdr session for `paddock-dev`. F5 also opens with its own user data in `.vscode-dev/`.
 - Before finishing a milestone, go through its manual checklist in `docs/PLAN.md`.
 
 ## Working on milestones

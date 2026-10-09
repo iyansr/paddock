@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import { AgentCatalog } from './agents';
 import { registerCommands } from './commands';
+import { prefixedState, sessionFor } from './devState';
 import { Herdr, type HerdrConfig } from './herdr/cli';
 import { isSupportedVersion, MIN_HERDR_VERSION, TESTED_API_PROTOCOL } from './herdr/parse';
 import { Picker } from './picker/controller';
@@ -9,14 +10,33 @@ import { Sessions } from './sessions';
 import { Store } from './store';
 import { ProjectsView } from './tree/view';
 
+let production = true;
+
 function readConfig(): HerdrConfig {
   const c = vscode.workspace.getConfiguration('paddock');
-  return { path: c.get<string>('herdrPath') ?? '', session: c.get<string>('herdrSession') || 'paddock' };
+  return {
+    path: c.get<string>('herdrPath') ?? '',
+    session: sessionFor(c.get<string>('herdrSession') ?? '', production),
+  };
+}
+
+/**
+ * The context a development or test run works with: its own state keys and storage folder,
+ * so it never reads or changes the groups, layouts or workspace file of an installed Paddock.
+ */
+function isolate(context: vscode.ExtensionContext): vscode.ExtensionContext {
+  return Object.create(context, {
+    globalState: { value: prefixedState(context.globalState) },
+    workspaceState: { value: prefixedState(context.workspaceState) },
+    globalStorageUri: { value: vscode.Uri.joinPath(context.globalStorageUri, 'dev') },
+  }) as vscode.ExtensionContext;
 }
 
 let active: Sessions | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(base: vscode.ExtensionContext) {
+  production = base.extensionMode === vscode.ExtensionMode.Production;
+  const context = production ? base : isolate(base);
   const store = new Store(context.globalState);
   const herdr = new Herdr(readConfig);
   const sessions = new Sessions(herdr, store, context);

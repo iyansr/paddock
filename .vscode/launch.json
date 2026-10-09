@@ -11,6 +11,10 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
+        // Own user data and extensions, so the debug window does not share settings, groups or
+        // the herdr session with an installed Paddock. Its settings.json sets herdrSession to paddock-dev.
+        "--user-data-dir=${workspaceFolder}/.vscode-dev/user",
+        "--extensions-dir=${workspaceFolder}/.vscode-dev/extensions",
         // Stable VS Code allows the `browser` API proposal only with this flag, even here.
         "--enable-proposed-api=iyansr.paddock"
       ],
