@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import { AgentCatalog } from './agents';
 import { registerCommands } from './commands';
 import { Herdr, type HerdrConfig } from './herdr/cli';
 import { isSupportedVersion, MIN_HERDR_VERSION, TESTED_API_PROTOCOL } from './herdr/parse';
@@ -21,6 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
   const sessions = new Sessions(herdr, store, context);
   active = sessions;
   const picker = new Picker(herdr, sessions);
+  const agents = new AgentCatalog();
 
   context.subscriptions.push(
     new ProjectsView(context.extensionUri, store, sessions).register(),
@@ -35,11 +37,13 @@ export function activate(context: vscode.ExtensionContext) {
     sessions.startPolling(2000),
     sessions.watchBranches(),
     picker,
-    ...registerCommands(store, sessions, picker),
+    ...registerCommands(store, sessions, picker, agents),
   );
 
   // Never await herdr here: activation must not block startup.
   void startHerdr(herdr, sessions, context.globalState);
+  // Looking for installed agents runs a login shell; New Session waits for it if needed.
+  void agents.refresh();
   // Attaching to browser tabs is asynchronous too.
   picker.start();
 }

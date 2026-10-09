@@ -2,11 +2,11 @@ import * as path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import type { AgentCatalog } from './agents';
 import { checkoutName, type Checkout } from './checkouts';
 import { AGENT_NAME } from './herdr/names';
 import type { PaneInfo } from './herdr/parse';
 import type { Picker } from './picker/controller';
-import { PRESETS } from './presets';
 import type { Sessions } from './sessions';
 import {
   addGroup,
@@ -38,7 +38,12 @@ function guarded<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...ar
   };
 }
 
-export function registerCommands(store: Store, sessions: Sessions, picker: Picker): vscode.Disposable[] {
+export function registerCommands(
+  store: Store,
+  sessions: Sessions,
+  picker: Picker,
+  agents: AgentCatalog,
+): vscode.Disposable[] {
   const projectOf = (node?: Node) =>
     node?.kind === 'project' ? store.snapshot.projects.find(p => p.id === node.id) : undefined;
   const sessionOf = (node?: Node) => (node?.kind === 'session' ? sessions.findSession(node.id) : undefined);
@@ -87,10 +92,13 @@ export function registerCommands(store: Store, sessions: Sessions, picker: Picke
 
   /** Asks for a preset and starts it in the checkout, switching there when it is not open. */
   const startSession = async (checkout: Checkout, pane?: PaneInfo) => {
-    const preset = await vscode.window.showQuickPick(
-      PRESETS.map(p => ({ label: p.label, preset: p })),
-      { placeHolder: `New session in ${checkoutName(checkout)}` },
-    );
+    // The lookup started on activation; a still-running one only delays the list, not the picker.
+    const items = agents
+      .presets(vscode.workspace.getConfiguration('paddock').get('agents'))
+      .then(presets => presets.map(p => ({ label: p.label, description: p.kind ?? 'shell', preset: p })));
+    const preset = await vscode.window.showQuickPick(items, {
+      placeHolder: `New session in ${checkoutName(checkout)}`,
+    });
     if (!preset) {
       return;
     }
@@ -345,6 +353,20 @@ export function registerCommands(store: Store, sessions: Sessions, picker: Picke
     vscode.commands.registerCommand(
       'paddock.pickElement',
       guarded(() => picker.togglePick()),
+    ),
+
+    vscode.commands.registerCommand(
+      'paddock.refreshAgents',
+      guarded(async () => {
+        const found = await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Window, title: 'Looking for agents…' },
+          () => agents.refresh(),
+        );
+        const names = found?.filter(p => p.kind).map(p => p.label) ?? [];
+        void vscode.window.showInformationMessage(
+          names.length ? `Paddock found: ${names.join(', ')}.` : 'Paddock found no supported agents.',
+        );
+      }),
     ),
 
     vscode.commands.registerCommand('paddock.moveToGroup', async (node?: Node, selected?: Node[]) => {

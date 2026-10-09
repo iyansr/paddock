@@ -816,7 +816,7 @@ export class Sessions {
   /** Kills the session and starts a fresh one of the same kind and name. */
   async restart(session: SessionInfo, c: Checkout): Promise<void> {
     await this.kill(session);
-    const preset: Preset = { id: session.kind ?? 'shell', label: session.name, kind: session.kind };
+    const preset: Preset = { label: session.name, kind: session.kind };
     await this.start(c, preset, { name: session.kind ? session.name : undefined });
   }
 

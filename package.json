@@ -93,7 +93,7 @@
       },
       {
         "command": "paddock.moveToGroup",
-        "title": "Move to Group…",
+        "title": "Move to Group\u2026",
         "category": "Paddock"
       },
       {
@@ -103,7 +103,7 @@
       },
       {
         "command": "paddock.newSession",
-        "title": "New Session…",
+        "title": "New Session\u2026",
         "category": "Paddock",
         "icon": "$(add)"
       },
@@ -135,13 +135,13 @@
       },
       {
         "command": "paddock.newWorktree",
-        "title": "New Worktree…",
+        "title": "New Worktree\u2026",
         "category": "Paddock",
         "icon": "$(git-branch)"
       },
       {
         "command": "paddock.removeWorktree",
-        "title": "Remove Worktree…",
+        "title": "Remove Worktree\u2026",
         "category": "Paddock",
         "icon": "$(trash)"
       },
@@ -156,6 +156,11 @@
         "title": "Pick Element in Browser",
         "category": "Paddock",
         "icon": "$(inspect)"
+      },
+      {
+        "command": "paddock.refreshAgents",
+        "title": "Refresh Installed Agents",
+        "category": "Paddock"
       }
     ],
     "menus": {
@@ -288,6 +293,29 @@
     "configuration": {
       "title": "Paddock",
       "properties": {
+        "paddock.agents": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Label shown in New Session."
+              },
+              "kind": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                "markdownDescription": "herdr agent kind (`herdr agent start --kind`), for example `claude`, `codex`, `gemini`, `opencode`. Leave out for a plain shell."
+              }
+            }
+          },
+          "markdownDescription": "Choices offered by **New Session**. Leave empty to offer the agents Paddock finds installed (run **Paddock: Refresh Installed Agents** after installing one). Each entry has a `name` and a herdr agent `kind`; an entry without `kind` starts a shell."
+        },
         "paddock.herdrPath": {
           "type": "string",
           "default": "",
