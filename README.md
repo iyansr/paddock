@@ -1,71 +1,66 @@
-# paddock README
+# Paddock
 
-This is the README for your extension "paddock". After writing up a brief description, we recommend including the following sections.
+Paddock keeps your coding agents running while you switch projects in a single VS Code window, and lets you pick an element in a browser and hand it to an agent.
 
-## Features
+<!-- TODO: short GIF of switching projects and picking an element (media/demo.gif). -->
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- **Agents live in [herdr](https://herdr.dev/), not in VS Code.** VS Code only draws their terminals, so Claude Code, Codex and friends keep working through window reloads, project switches and quitting VS Code.
+- **One sidebar for every project.** Groups, projects, git worktrees and agent sessions, each with a live badge: running, waiting for input, done or exited. A session that starts waiting shows a notification with **Go to session**.
+- **Switch projects in place.** Clicking a project reopens the same window on it; its sessions reattach where they were, in the panel or as editor tabs.
+- **Pick an element, send it to an agent.** Open VS Code's integrated browser, pick an element, add an instruction, and Paddock types `@.paddock/picks/<pick>.md` into the agent's prompt without pressing Enter. The pick holds the URL, selector, React component, size, text, computed styles, trimmed HTML and a screenshot.
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- macOS or Linux.
+- VS Code 1.140 or later.
+- herdr 0.9.3 or later. If Paddock can't find it, it offers to run herdr's installer (`curl -fsSL https://herdr.dev/install.sh | sh`) in a terminal. If herdr is installed somewhere VS Code doesn't look, set `paddock.herdrPath`.
 
-## Extension Settings
+### Enable the browser API (element picker only)
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+The picker uses VS Code's proposed `browser` API, which an installed extension may use only when VS Code is told so. Run **Preferences: Configure Runtime Arguments**, add this line to `argv.json`, and quit and restart VS Code:
 
-For example:
+```json
+"enable-proposed-api": ["iyansr.paddock"]
+```
 
-This extension contributes the following settings:
+Everything else works without it. **Paddock: Open Browser** explains this and opens `argv.json` if the API is not enabled.
 
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
+## Getting started
 
-## Known Issues
+1. Open the Paddock view in the activity bar and **Add Project** (or create a **New Group** first).
+2. Right-click a project and pick **New Session…**, then a preset such as Claude Code.
+3. Click another project to switch to it. Sessions keep running; switch back and they reattach.
+4. Click the globe in the Paddock title bar to open a browser tab, type a URL, then press the **Pick** button in the page (or Cmd+Alt+P / Ctrl+Alt+P). Click an element, type an instruction, and **Send** (Enter) or **Copy** (Cmd/Ctrl+Enter).
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+Installed an agent after opening VS Code? Run **Paddock: Refresh Installed Agents**. Closing a session's terminal only detaches it. Use **Kill Session** in the context menu to stop an agent.
 
-## Release Notes
+## Settings
 
-Users appreciate release notes as you update your extension.
+| Setting                    | Default   | What it does                                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `paddock.agents`           | empty     | Choices offered by **New Session**. Empty offers the agents Paddock finds installed (Claude Code, Codex, Gemini CLI, opencode, Cursor Agent and the other kinds herdr supports) plus Shell. To pick your own: `[{ "name": "Gemini", "kind": "gemini" }]`, where `kind` is herdr's agent kind and an entry without it is a shell. |
+| `paddock.herdrPath`        | empty     | Path to the `herdr` binary. Empty looks in `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`.                                                                                                                                                                                                                             |
+| `paddock.herdrSession`     | `paddock` | herdr session Paddock keeps its agents in, separate from herdr's default session.                                                                                                                                                                                                                                                |
+| `paddock.terminalLocation` | `editor`  | Where session terminals open: `editor` tabs or the bottom `panel`.                                                                                                                                                                                                                                                               |
+| `paddock.switchMode`       | `reload`  | `reload` reopens the folder. `swap` (experimental) keeps a multi-root workspace and swaps only the project folder, with no reload.                                                                                                                                                                                               |
 
-### 1.0.0
+## What Paddock writes
 
-Initial release of ...
+- Picks go to `.paddock/picks/` in the agent's checkout. Paddock adds `.paddock/` to `.git/info/exclude`, never to `.gitignore`.
+- With your approval, Paddock runs `herdr integration install claude` (or `codex`), which edits that agent's own config so herdr reports exact state. It never does this without asking.
 
-### 1.0.1
+## Known issues
 
-Fixed issue #.
+- Mouse-wheel scrolling through an agent's history inside the VS Code terminal does not work yet; herdr repaints the screen, so VS Code's scrollback stays empty.
+- The `browser` API is a proposal and may change between VS Code releases. Extensions that use proposals cannot be published to the Marketplace.
+- Paddock warns once when the installed herdr speaks a different API protocol from the one it was tested with.
+- Windows is not supported.
 
-### 1.1.0
+## Development
 
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-- Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-- Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-- Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+```bash
+pnpm install
+pnpm run watch          # then press F5 for the Extension Development Host
+pnpm run test:unit
+pnpm dlx @vscode/vsce package --no-dependencies
+```
