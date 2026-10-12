@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { herdrEnv } from '../../src/herdr/cli';
 import { encodeCommand, LineSplitter, parseStreamLine, translateInput, WHEEL_LINES } from '../../src/herdr/frames';
 import { AGENT_NAME, displayName, nextAgentName } from '../../src/herdr/names';
 import {
@@ -38,6 +39,16 @@ const PANE = {
   terminal_title_stripped: 'iyansr@host:/tmp',
   workspace_id: 'w1',
 };
+
+describe('herdrEnv', () => {
+  it('drops inherited herdr variables and sets the session', () => {
+    const env = herdrEnv(
+      { PATH: '/bin', HERDR_SOCKET_PATH: '/x/herdr.sock', HERDR_PANE_ID: 'w1:p1', HERDR_SESSION: 'paddock' },
+      'paddock-dev',
+    );
+    expect(env).toEqual({ PATH: '/bin', HERDR_SESSION: 'paddock-dev' });
+  });
+});
 
 describe('parseEnvelope', () => {
   it('unwraps result', () => {

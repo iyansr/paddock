@@ -41,6 +41,21 @@ interface ExecFailure extends Error {
 }
 
 /**
+ * Environment for a herdr call. VS Code started from inside a herdr pane inherits
+ * that pane's HERDR_* variables, and HERDR_SOCKET_PATH would win over
+ * HERDR_SESSION, so they are all dropped first.
+ */
+export function herdrEnv(base: NodeJS.ProcessEnv, session: string): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(base)) {
+    if (!key.startsWith('HERDR_')) {
+      env[key] = value;
+    }
+  }
+  return { ...env, HERDR_SESSION: session };
+}
+
+/**
  * The only place that runs herdr. Every call goes through execFile with an
  * argument array and HERDR_SESSION set; nothing is ever a shell string.
  */
@@ -54,7 +69,7 @@ export class Herdr {
   }
 
   private get env(): NodeJS.ProcessEnv {
-    return { ...process.env, HERDR_SESSION: this.getConfig().session };
+    return herdrEnv(process.env, this.getConfig().session);
   }
 
   /** VS Code often starts without the user's shell PATH, so try the usual install spots. */

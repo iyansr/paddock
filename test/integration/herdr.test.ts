@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { Herdr } from '../../src/herdr/cli';
+import { Herdr, herdrEnv } from '../../src/herdr/cli';
 import { encodeCommand, LineSplitter, parseStreamLine } from '../../src/herdr/frames';
 import { HerdrError, isSupportedVersion } from '../../src/herdr/parse';
 
@@ -22,9 +22,7 @@ afterAll(async () => {
   // herdr has no CLI wrapper for this in cli.ts on purpose; stop the throwaway server directly.
   const { execFile } = await import('node:child_process');
   await new Promise(resolve =>
-    execFile('herdr', ['server', 'stop'], { env: { ...process.env, HERDR_SESSION: session } }, () =>
-      resolve(undefined),
-    ),
+    execFile('herdr', ['server', 'stop'], { env: herdrEnv(process.env, session) }, () => resolve(undefined)),
   );
   await new Promise(r => setTimeout(r, 500));
   rmSync(join(homedir(), '.config', 'herdr', 'sessions', session), { recursive: true, force: true });
