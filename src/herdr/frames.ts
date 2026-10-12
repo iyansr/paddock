@@ -60,6 +60,7 @@ export function encodeCommand(command: ControlCommand): string {
  * the wheel scrolls VS Code's scrollback, which holds none of the pane's history.
  */
 export const MOUSE_REPORTING_ON = '\x1b[?1000h\x1b[?1006h';
+export const MOUSE_REPORTING_OFF = '\x1b[?1000l\x1b[?1006l';
 
 /**
  * Asks the VS Code terminal to wrap pastes in bracketed-paste markers. herdr's
@@ -70,7 +71,7 @@ export const MOUSE_REPORTING_ON = '\x1b[?1000h\x1b[?1006h';
 export const BRACKETED_PASTE_ON = '\x1b[?2004h';
 
 /** Lines scrolled per wheel report. */
-export const WHEEL_LINES = 3;
+export const WHEEL_LINES = 1;
 
 // SGR mouse report: ESC [ < button ; col ; row (M press | m release).
 // oxlint-disable-next-line no-control-regex -- matching ESC is the point

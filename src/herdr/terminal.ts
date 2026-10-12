@@ -8,6 +8,7 @@ import {
   BRACKETED_PASTE_ON,
   encodeCommand,
   LineSplitter,
+  MOUSE_REPORTING_OFF,
   MOUSE_REPORTING_ON,
   parseStreamLine,
   translateInput,
@@ -52,6 +53,7 @@ export class HerdrPty implements vscode.Pseudoterminal {
   private rows = 24;
   private focused = false;
   private icons: ToolbarIcons = 'unicode';
+  private mouse = true;
 
   constructor(
     private readonly herdr: Herdr,
@@ -94,6 +96,22 @@ export class HerdrPty implements vscode.Pseudoterminal {
     }
   }
 
+  /**
+   * Turns mouse reporting on or off (the `paddock.terminalMouse` setting). Off
+   * gives plain drag selection back, but the wheel and toolbar clicks stop working.
+   */
+  setMouse(on: boolean): void {
+    if (on !== this.mouse) {
+      this.mouse = on;
+      this.write.fire(on ? MOUSE_REPORTING_ON : MOUSE_REPORTING_OFF);
+    }
+  }
+
+  /** Scrolls herdr's scrollback by one page. */
+  scrollPage(direction: 'up' | 'down'): void {
+    this.send({ type: 'terminal.scroll', direction, lines: Math.max(1, this.paneRows() - 1) });
+  }
+
   private toolbar(): string {
     return drawToolbar(this.cols, this.focused, this.icons);
   }
@@ -133,7 +151,7 @@ export class HerdrPty implements vscode.Pseudoterminal {
 
   /** Terminal modes Paddock relies on; a full frame follows a reset, so they are re-sent with it. */
   private modes(): string {
-    return MOUSE_REPORTING_ON + BRACKETED_PASTE_ON + FOCUS_REPORTING_ON + scrollRegion(this.rows);
+    return (this.mouse ? MOUSE_REPORTING_ON : '') + BRACKETED_PASTE_ON + FOCUS_REPORTING_ON + scrollRegion(this.rows);
   }
 
   private send(command: ControlCommand): void {

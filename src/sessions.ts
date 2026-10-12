@@ -158,6 +158,11 @@ export class Sessions {
             open.pty.setIcons(this.toolbarIcons());
           }
         }
+        if (e.affectsConfiguration('paddock.terminalMouse')) {
+          for (const open of this.terminals.values()) {
+            open.pty.setMouse(this.terminalMouse());
+          }
+        }
       }),
       vscode.window.onDidCloseTerminal(t => {
         for (const [paneId, open] of this.terminals) {
@@ -647,6 +652,11 @@ export class Sessions {
     return undefined;
   }
 
+  /** Scrolls the active Paddock terminal by a page. */
+  scrollActive(direction: 'up' | 'down'): void {
+    [...this.terminals.values()].find(o => o.terminal === vscode.window.activeTerminal)?.pty.scrollPage(direction);
+  }
+
   /** Opens the session next to `from`'s terminal (else the active one): in a new editor group right of or below it, or split in the panel. */
   async showSplit(session: SessionInfo, direction: 'right' | 'down', from?: string): Promise<void> {
     const existing = this.terminals.get(session.paneId);
@@ -681,6 +691,7 @@ export class Sessions {
       onAction: action => void vscode.commands.executeCommand(`paddock.${action}`, session.paneId),
     });
     pty.setIcons(this.toolbarIcons());
+    pty.setMouse(this.terminalMouse());
     const terminal = vscode.window.createTerminal({
       name: session.name,
       pty,
@@ -734,6 +745,10 @@ export class Sessions {
         await this.context.workspaceState.update(GRIDS_KEY, this.grids);
       }
     }
+  }
+
+  private terminalMouse(): boolean {
+    return vscode.workspace.getConfiguration('paddock').get('terminalMouse') !== false;
   }
 
   private toolbarIcons(): ToolbarIcons {

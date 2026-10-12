@@ -145,6 +145,16 @@
         "category": "Paddock"
       },
       {
+        "command": "paddock.scrollPageUp",
+        "title": "Scroll Session Up a Page",
+        "category": "Paddock"
+      },
+      {
+        "command": "paddock.scrollPageDown",
+        "title": "Scroll Session Down a Page",
+        "category": "Paddock"
+      },
+      {
         "command": "paddock.killSession",
         "title": "Kill Session",
         "category": "Paddock",
@@ -253,6 +263,14 @@
           "when": "paddock.activeIsSession"
         },
         {
+          "command": "paddock.scrollPageUp",
+          "when": "paddock.activeIsSession"
+        },
+        {
+          "command": "paddock.scrollPageDown",
+          "when": "paddock.activeIsSession"
+        },
+        {
           "command": "paddock.splitRight",
           "when": "paddock.activeIsSession"
         },
@@ -332,6 +350,12 @@
         }
       ]
     },
+    "configurationDefaults": {
+      "terminal.integrated.commandsToSkipShell": [
+        "paddock.scrollPageUp",
+        "paddock.scrollPageDown"
+      ]
+    },
     "configuration": {
       "title": "Paddock",
       "properties": {
@@ -390,6 +414,11 @@
           ],
           "markdownDescription": "Icons of the split and kill buttons on a session terminal's top row. Choose `nerdFont` when `terminal.integrated.fontFamily` is a Nerd Font for larger, sharper icons."
         },
+        "paddock.terminalMouse": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Let session terminals take the mouse: the wheel scrolls the agent's history and the split and kill buttons on the top row are clickable, but selecting text needs Option (macOS, with `terminal.integrated.macOptionClickForcesSelection`) or Shift. Turn off to select with a plain drag; then scroll with Shift+PageUp and Shift+PageDown and use the Split and Kill commands."
+        },
         "paddock.switchMode": {
           "type": "string",
           "enum": [
@@ -406,6 +435,16 @@
         "command": "paddock.pickElement",
         "key": "ctrl+alt+p",
         "mac": "cmd+alt+p"
+      },
+      {
+        "command": "paddock.scrollPageUp",
+        "key": "shift+pageup",
+        "when": "terminalFocus && paddock.activeIsSession"
+      },
+      {
+        "command": "paddock.scrollPageDown",
+        "key": "shift+pagedown",
+        "when": "terminalFocus && paddock.activeIsSession"
       }
     ]
   },

@@ -358,6 +358,9 @@ export function registerCommands(
       }),
     ),
 
+    vscode.commands.registerCommand('paddock.scrollPageUp', () => sessions.scrollActive('up')),
+    vscode.commands.registerCommand('paddock.scrollPageDown', () => sessions.scrollActive('down')),
+
     vscode.commands.registerCommand(
       'paddock.killSession',
       guarded(async (node?: Node | string) => {
