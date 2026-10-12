@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.1.2
+
+- Multi-line pastes in session terminals stay one paste instead of submitting each line.
+- `paddock.terminalMouse`: turn off to select terminal text with a plain drag; Shift+PageUp and Shift+PageDown then scroll the session.
+- The mouse wheel scrolls one line per step, which follows a trackpad more closely.
+- herdr calls ignore `HERDR_*` variables inherited from a herdr pane, so `paddock.herdrSession` always applies.
+
 ## 0.1.1
 
 - Session terminals show a toolbar on their top row while focused: Split Right, Split Down and Kill. `paddock.toolbarIcons` switches it to Nerd Font icons.
