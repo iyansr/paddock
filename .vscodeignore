@@ -28,3 +28,4 @@ CLAUDE.md
 **/*.ts
 **/.vscode-test.*
 .github/**
+videos/**
