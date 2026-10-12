@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 import type { Herdr } from './cli';
 import {
+  BRACKETED_PASTE_ON,
   encodeCommand,
   LineSplitter,
   MOUSE_REPORTING_ON,
@@ -132,7 +133,7 @@ export class HerdrPty implements vscode.Pseudoterminal {
 
   /** Terminal modes Paddock relies on; a full frame follows a reset, so they are re-sent with it. */
   private modes(): string {
-    return MOUSE_REPORTING_ON + FOCUS_REPORTING_ON + scrollRegion(this.rows);
+    return MOUSE_REPORTING_ON + BRACKETED_PASTE_ON + FOCUS_REPORTING_ON + scrollRegion(this.rows);
   }
 
   private send(command: ControlCommand): void {

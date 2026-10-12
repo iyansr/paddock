@@ -61,6 +61,14 @@ export function encodeCommand(command: ControlCommand): string {
  */
 export const MOUSE_REPORTING_ON = '\x1b[?1000h\x1b[?1006h';
 
+/**
+ * Asks the VS Code terminal to wrap pastes in bracketed-paste markers. herdr's
+ * frames never carry the app's paste mode either, so without this a multi-line
+ * paste arrives as typed lines and each newline submits. herdr strips the
+ * markers again when the app did not ask for them.
+ */
+export const BRACKETED_PASTE_ON = '\x1b[?2004h';
+
 /** Lines scrolled per wheel report. */
 export const WHEEL_LINES = 3;
 

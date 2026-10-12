@@ -243,6 +243,10 @@ describe('stream protocol', () => {
     expect(translateInput('ls\r')).toEqual([{ type: 'terminal.input', text: 'ls\r' }]);
     expect(translateInput('\x1b[A')).toEqual([{ type: 'terminal.input', text: '\x1b[A' }]);
   });
+  it('keeps a bracketed paste whole, markers included', () => {
+    const paste = '\x1b[200~one\rtwo\x1b[201~';
+    expect(translateInput(paste)).toEqual([{ type: 'terminal.input', text: paste }]);
+  });
   it('turns wheel reports into scrolls and merges repeats', () => {
     expect(translateInput('\x1b[<64;10;5M')).toEqual([
       { type: 'terminal.scroll', direction: 'up', lines: WHEEL_LINES },
